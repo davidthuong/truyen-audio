@@ -34,12 +34,15 @@ class TTSEngine:
     def __init__(self):
         pass
 
-    async def get_vivibe_voices(self, api_key: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Lấy danh sách các giọng đọc đã tạo/sở hữu từ tài khoản ViVibe (LucyAI)"""
+    async def get_vivibe_voices_detail(self, api_key: Optional[str] = None) -> Dict[str, Any]:
+        """Lấy danh sách các giọng đọc từ tài khoản ViVibe (LucyAI) kèm thông báo chi tiết"""
         settings = load_settings()
         key = (api_key or settings.get("vivibe_api_key", "")).strip()
+        if key.lower().startswith("bearer "):
+            key = key[7:].strip()
+        
         if not key:
-            return []
+            return {"status": "error", "message": "Chưa nhập ViVibe API Key.", "voices": []}
 
         url = "https://api.lucylab.io/json-rpc"
         headers = {
@@ -58,22 +61,43 @@ class TTSEngine:
             timeout = aiohttp.ClientTimeout(total=15)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(url, headers=headers, json=payload) as resp:
+                    resp_text = await resp.text()
                     if resp.status == 200:
-                        data = await resp.json()
+                        try:
+                            data = json.loads(resp_text)
+                        except Exception:
+                            return {"status": "error", "message": f"Phản hồi không hợp lệ: {resp_text[:100]}", "voices": []}
+
+                        if "error" in data:
+                            err_msg = data["error"].get("message") if isinstance(data["error"], dict) else str(data["error"])
+                            return {"status": "error", "message": f"ViVibe báo lỗi: {err_msg}", "voices": []}
+
                         result = data.get("result", {})
                         items = result.get("items", [])
-                        return [
+                        voices = [
                             {
                                 "id": f"vivibe:{item.get('id')}",
                                 "raw_id": item.get("id"),
                                 "name": f"[ViVibe AI] {item.get('name', 'Voice')}",
                                 "isActive": item.get("isActive", True)
                             }
-                            for item in items
+                            for item in items if item.get("id")
                         ]
+                        return {
+                            "status": "ok",
+                            "voices": voices,
+                            "total": len(voices),
+                            "message": "Thành công" if voices else "Tài khoản của bạn chưa có giọng tự tạo/clone trên ViVibe. Bạn có thể dán trực tiếp Voice ID vào ô nhập bên dưới!"
+                        }
+                    else:
+                        return {"status": "error", "message": f"ViVibe HTTP {resp.status}: {resp_text[:150]}", "voices": []}
         except Exception as e:
-            print(f"[ViVibe API] Lỗi lấy danh sách giọng: {e}")
-        return []
+            return {"status": "error", "message": f"Lỗi kết nối ViVibe: {str(e)}", "voices": []}
+
+    async def get_vivibe_voices(self, api_key: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Lấy danh sách các giọng đọc từ tài khoản ViVibe (LucyAI)"""
+        res = await self.get_vivibe_voices_detail(api_key=api_key)
+        return res.get("voices", [])
 
     async def generate_speech(
         self,

@@ -245,9 +245,9 @@ async function fetchVivibeVoicesList(selectedVoiceId = "") {
     try {
         const resp = await fetch(`/api/vivibe/voices?key=${encodeURIComponent(key)}`);
         const data = await resp.json();
-        if (data.voices && data.voices.length > 0) {
+        if (data.status === "ok" && data.voices && data.voices.length > 0) {
             if (elements.selectVivibeVoice) {
-                elements.selectVivibeVoice.innerHTML = `<option value="">-- Chọn giọng để tự động điền --</option>` + data.voices.map(v => 
+                elements.selectVivibeVoice.innerHTML = `<option value="">-- Chọn giọng để tự động điền ID --</option>` + data.voices.map(v => 
                     `<option value="${v.raw_id}" ${v.raw_id === selectedVoiceId || v.id === selectedVoiceId ? 'selected' : ''}>${v.name} (${v.raw_id})</option>`
                 ).join("");
             }
@@ -259,10 +259,11 @@ async function fetchVivibeVoicesList(selectedVoiceId = "") {
             } else if (!elements.setVivibeVoiceId.value && data.voices[0]) {
                 elements.setVivibeVoiceId.value = data.voices[0].raw_id;
             }
-            alert(`Đã tìm thấy ${data.voices.length} giọng đọc trên ViVibe!`);
+            alert(`✅ Đã tải thành công ${data.voices.length} giọng đọc từ ViVibe!`);
             return data.voices;
         } else {
-            alert("Không tìm thấy giọng đọc nào trên tài khoản ViVibe hoặc API Key chưa đúng.");
+            const msg = data.message || "Không tìm thấy giọng đọc nào trên tài khoản ViVibe.";
+            alert(`ℹ️ ${msg}`);
         }
     } catch (err) {
         console.warn("Lỗi tải giọng ViVibe:", err);

@@ -215,9 +215,9 @@ async def get_app_config():
 
 @app.get("/api/vivibe/voices")
 async def api_get_vivibe_voices(key: Optional[str] = None):
-    """Lấy danh sách giọng đọc trực tiếp từ ViVibe JSON-RPC API"""
-    voices = await tts_engine.get_vivibe_voices(api_key=key)
-    return {"status": "ok", "voices": voices}
+    """Lấy danh sách giọng đọc trực tiếp từ ViVibe JSON-RPC API kèm chi tiết lỗi"""
+    res = await tts_engine.get_vivibe_voices_detail(api_key=key)
+    return res
 
 @app.get("/api/settings")
 async def get_settings():
