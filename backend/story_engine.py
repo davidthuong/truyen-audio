@@ -135,18 +135,25 @@ Chỉ trả về JSON Array."""
         }
 
         chapters_outline = []
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f"{base_url}/chat/completions", headers=headers, json={
-                "model": model,
-                "messages": [{"role": "user", "content": outline_prompt}],
-                "temperature": 0.7
-            }, timeout=aiohttp.ClientTimeout(total=60)) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    content = data["choices"][0]["message"]["content"]
-                    m = re.search(r"\[.*\]", content, re.DOTALL)
-                    if m:
-                        chapters_outline = json.loads(m.group(0))
+        try:
+            timeout_outline = aiohttp.ClientTimeout(total=45, connect=10)
+            async with aiohttp.ClientSession(timeout=timeout_outline) as session:
+                async with session.post(f"{base_url}/chat/completions", headers=headers, json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": outline_prompt}],
+                    "temperature": 0.7
+                }) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        content = data["choices"][0]["message"]["content"]
+                        m = re.search(r"\[.*\]", content, re.DOTALL)
+                        if m:
+                            chapters_outline = json.loads(m.group(0))
+                    else:
+                        err_body = await resp.text()
+                        print(f"[Custom AI] Lỗi lập dàn ý ({resp.status}): {err_body[:120]}")
+        except Exception as e:
+            print(f"[Custom AI] Lỗi kết nối khi lập dàn ý ({e})")
 
         if not chapters_outline:
             # Fallback tạo dàn ý cơ bản
@@ -155,7 +162,9 @@ Chỉ trả về JSON Array."""
                 for i in range(num_chapters)
             ]
 
-        # Bước 2: Sinh chi tiết tất cả các chương SONG SONG (asyncio.gather) tốc độ siêu tốc
+        # Bước 2: Sinh chi tiết các chương (Dùng Semaphore 2 luồng để không làm nghẽn Proxy)
+        sem_chap = asyncio.Semaphore(2)
+
         async def generate_single_chapter(chap_idx: int, chap: Dict[str, Any]):
             chap_prompt = f"""Dựa vào cốt truyện thể loại '{genre}', chủ đề '{topic}'.
 Hãy viết kịch bản chi tiết cho Chương {chap.get('chapter', chap_idx+1)}: '{chap.get('title', '')}' (Nội dung: {chap.get('summary', '')}).
@@ -166,37 +175,46 @@ Chia thành {scenes_per_chapter} phân cảnh (scenes) kể chuyện sâu sắc,
   ...
 ]
 Chỉ trả lời mảng JSON."""
-            try:
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45, connect=10)) as session:
-                    async with session.post(f"{base_url}/chat/completions", headers=headers, json={
-                        "model": model,
-                        "messages": [{"role": "user", "content": chap_prompt}],
-                        "temperature": 0.8
-                    }) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            content = data["choices"][0]["message"]["content"]
-                            m = re.search(r"\[.*\]", content, re.DOTALL)
-                            if m:
-                                return chap_idx, chap, json.loads(m.group(0))
-            except Exception as e:
-                print(f"Error generating chapter {chap}: {e}")
+            async with sem_chap:
+                for retry in range(2):
+                    try:
+                        timeout_chap = aiohttp.ClientTimeout(total=45, connect=10)
+                        async with aiohttp.ClientSession(timeout=timeout_chap) as session:
+                            async with session.post(f"{base_url}/chat/completions", headers=headers, json={
+                                "model": model,
+                                "messages": [{"role": "user", "content": chap_prompt}],
+                                "temperature": 0.8
+                            }) as resp:
+                                if resp.status == 200:
+                                    data = await resp.json()
+                                    content = data["choices"][0]["message"]["content"]
+                                    m = re.search(r"\[.*\]", content, re.DOTALL)
+                                    if m:
+                                        return chap_idx, chap, json.loads(m.group(0))
+                                else:
+                                    err_txt = await resp.text()
+                                    print(f"[Custom AI] Chương {chap_idx+1} HTTP {resp.status}: {err_txt[:100]}")
+                    except Exception as e:
+                        print(f"[Custom AI] Lỗi sinh chương {chap_idx+1} (lần {retry+1}): {e}")
+                    await asyncio.sleep(1)
             return chap_idx, chap, []
 
         chap_tasks = [generate_single_chapter(i, chap) for i, chap in enumerate(chapters_outline)]
-        chap_results = await asyncio.gather(*chap_tasks)
-        chap_results.sort(key=lambda x: x[0])
+        chap_results = await asyncio.gather(*chap_tasks, return_exceptions=True)
 
         all_scenes = []
         scene_counter = 1
-        for _, chap, chap_scenes in chap_results:
-            for sc in chap_scenes:
-                all_scenes.append({
-                    "scene": scene_counter,
-                    "text": f"[{chap.get('title')}] {sc.get('text')}" if scene_counter % scenes_per_chapter == 1 else sc.get('text'),
-                    "image_prompt": sc.get('image_prompt', 'cinematic atmosphere, highly detailed')
-                })
-                scene_counter += 1
+        for res in chap_results:
+            if isinstance(res, tuple) and len(res) == 3:
+                _, chap, chap_scenes = res
+                if isinstance(chap_scenes, list):
+                    for sc in chap_scenes:
+                        all_scenes.append({
+                            "scene": scene_counter,
+                            "text": f"[{chap.get('title')}] {sc.get('text')}" if scene_counter % scenes_per_chapter == 1 else sc.get('text'),
+                            "image_prompt": sc.get('image_prompt', 'cinematic atmosphere, highly detailed')
+                        })
+                        scene_counter += 1
 
         if all_scenes:
             return all_scenes
