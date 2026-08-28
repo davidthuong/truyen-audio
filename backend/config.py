@@ -37,7 +37,10 @@ DEFAULT_SETTINGS = {
     "image_model": "gpt-image-2",
     "image_provider": "openai_dalle",
     "default_voice": "vi-VN-HoaiMyNeural",
-    "default_bgm_volume": 0.15
+    "default_bgm_volume": 0.15,
+    "auth_enabled": True,
+    "auth_username": "admin",
+    "auth_password": "admin123"
 }
 
 def load_settings() -> Dict[str, Any]:

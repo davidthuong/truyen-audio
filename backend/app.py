@@ -8,7 +8,9 @@ import time
 import json
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File
+import secrets
+import base64
+from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
@@ -27,6 +29,51 @@ from backend.youtube_engine import youtube_engine
 from backend.scheduler import auto_scheduler
 
 app = FastAPI(title="AI Audio Story Video Studio API")
+
+@app.middleware("http")
+async def basic_auth_middleware(request: Request, call_next):
+    # Cho phép Google OAuth callback đi qua mà không bị chặn
+    if request.url.path == "/api/youtube/oauth2callback":
+        return await call_next(request)
+
+    settings = load_settings()
+    auth_enabled = settings.get("auth_enabled", True)
+    if not auth_enabled:
+        return await call_next(request)
+
+    expected_username = str(settings.get("auth_username", "admin")).strip() or "admin"
+    expected_password = str(settings.get("auth_password", "admin123")).strip() or "admin123"
+
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Basic "):
+        return Response(
+            content="Authentication Required. Please enter username and password.",
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="AI Audio Story Studio"'}
+        )
+
+    try:
+        encoded_creds = auth_header.split(" ", 1)[1]
+        decoded = base64.b64decode(encoded_creds).decode("utf-8")
+        username, _, password = decoded.partition(":")
+
+        is_correct_user = secrets.compare_digest(username.strip(), expected_username)
+        is_correct_pass = secrets.compare_digest(password.strip(), expected_password)
+
+        if not (is_correct_user and is_correct_pass):
+            return Response(
+                content="Unauthorized: Sai tên đăng nhập hoặc mật khẩu.",
+                status_code=401,
+                headers={"WWW-Authenticate": 'Basic realm="AI Audio Story Studio"'}
+            )
+    except Exception:
+        return Response(
+            content="Invalid Authorization header",
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="AI Audio Story Studio"'}
+        )
+
+    return await call_next(request)
 
 @app.on_event("startup")
 async def app_startup():
@@ -50,6 +97,9 @@ class SettingsModel(BaseModel):
     chat_model: Optional[str] = "gpt-4o-mini"
     image_model: Optional[str] = "dall-e-3"
     image_provider: Optional[str] = "pollinations"
+    auth_enabled: Optional[bool] = True
+    auth_username: Optional[str] = "admin"
+    auth_password: Optional[str] = "admin123"
 
 class StoryGenRequest(BaseModel):
     genre: str = "dark_mystery"

@@ -61,6 +61,9 @@ const elements = {
     setImageProvider: document.getElementById("set-image-provider"),
     setImageModel: document.getElementById("set-image-model"),
     groupDalleModel: document.getElementById("group-dalle-model"),
+    setAuthUsername: document.getElementById("set-auth-username"),
+    setAuthPassword: document.getElementById("set-auth-password"),
+    setAuthEnabled: document.getElementById("set-auth-enabled"),
     
     // Render Modal
     renderModal: document.getElementById("render-modal"),
@@ -210,6 +213,9 @@ async function loadSettingsData() {
             elements.setChatModel.value = s.chat_model || "gpt-4o-mini";
             elements.setImageProvider.value = s.image_provider || "pollinations";
             elements.setImageModel.value = s.image_model || "dall-e-3";
+            if (elements.setAuthUsername) elements.setAuthUsername.value = s.auth_username || "admin";
+            if (elements.setAuthPassword) elements.setAuthPassword.value = s.auth_password || "admin123";
+            if (elements.setAuthEnabled) elements.setAuthEnabled.checked = s.auth_enabled !== false;
             
             if (s.image_provider === "openai_dalle") {
                 elements.groupDalleModel.classList.remove("hidden");
@@ -232,7 +238,10 @@ async function saveSettingsData() {
         base_url: elements.setBaseUrl.value.trim() || "https://api.openai.com/v1",
         chat_model: elements.setChatModel.value.trim() || "gpt-4o-mini",
         image_provider: elements.setImageProvider.value,
-        image_model: elements.setImageModel.value.trim() || "dall-e-3"
+        image_model: elements.setImageModel.value.trim() || "dall-e-3",
+        auth_enabled: elements.setAuthEnabled ? elements.setAuthEnabled.checked : true,
+        auth_username: elements.setAuthUsername ? elements.setAuthUsername.value.trim() : "admin",
+        auth_password: elements.setAuthPassword ? elements.setAuthPassword.value.trim() : "admin123"
     };
 
     try {
@@ -242,7 +251,7 @@ async function saveSettingsData() {
             body: JSON.stringify(payload)
         });
         if (resp.ok) {
-            alert("Đã lưu cấu hình API thành công!");
+            alert("Đã lưu cấu hình API & Bảo mật thành công!");
             elements.settingsModal.classList.add("hidden");
         }
     } catch (err) {
