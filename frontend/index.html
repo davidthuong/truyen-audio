@@ -557,16 +557,21 @@
 
                         <div class="form-row" style="align-items: flex-end;">
                             <div class="form-group flex-1">
-                                <label><i class="fa-solid fa-user-tie"></i> Giọng Đọc ViVibe (Voice ID)</label>
-                                <select id="set-vivibe-voice-id" class="form-control">
-                                    <option value="">-- Bấm 'Tải Giọng' hoặc dán ID --</option>
-                                </select>
+                                <label><i class="fa-solid fa-id-card-clip"></i> ViVibe Voice ID (Dán trực tiếp hoặc bấm Tải Giọng)</label>
+                                <input type="text" id="set-vivibe-voice-id" class="form-control" placeholder="Nhập hoặc dán Voice ID vào đây...">
                             </div>
                             <div class="form-group">
                                 <button class="btn btn-outline" type="button" id="btn-fetch-vivibe-voices" style="height: 42px; white-space: nowrap;">
-                                    <i class="fa-solid fa-arrows-rotate"></i> Tải Giọng
+                                    <i class="fa-solid fa-arrows-rotate"></i> Tải Giọng Của Tôi
                                 </button>
                             </div>
+                        </div>
+
+                        <div class="form-group hidden" id="group-vivibe-voices-select" style="margin-top: -6px;">
+                            <label style="font-size: 0.8rem; color: #a855f7;"><i class="fa-solid fa-list-check"></i> Chọn từ danh sách giọng của bạn:</label>
+                            <select id="select-vivibe-voice" class="form-control" style="font-size: 0.88rem;">
+                                <option value="">-- Danh sách giọng đọc --</option>
+                            </select>
                         </div>
                     </div>
 

@@ -67,8 +67,10 @@ const elements = {
     setTtsProvider: document.getElementById("set-tts-provider"),
     setVivibeApiKey: document.getElementById("set-vivibe-api-key"),
     setVivibeVoiceId: document.getElementById("set-vivibe-voice-id"),
+    selectVivibeVoice: document.getElementById("select-vivibe-voice"),
     btnFetchVivibeVoices: document.getElementById("btn-fetch-vivibe-voices"),
     groupVivibeConfig: document.getElementById("group-vivibe-config"),
+    groupVivibeVoicesSelect: document.getElementById("group-vivibe-voices-select"),
     
     // Render Modal
     renderModal: document.getElementById("render-modal"),
@@ -176,6 +178,14 @@ function initEvents() {
         });
     }
 
+    if (elements.selectVivibeVoice) {
+        elements.selectVivibeVoice.addEventListener("change", (e) => {
+            if (e.target.value) {
+                elements.setVivibeVoiceId.value = e.target.value;
+            }
+        });
+    }
+
     if (elements.btnFetchVivibeVoices) {
         elements.btnFetchVivibeVoices.addEventListener("click", () => fetchVivibeVoicesList());
     }
@@ -236,22 +246,30 @@ async function fetchVivibeVoicesList(selectedVoiceId = "") {
         const resp = await fetch(`/api/vivibe/voices?key=${encodeURIComponent(key)}`);
         const data = await resp.json();
         if (data.voices && data.voices.length > 0) {
-            elements.setVivibeVoiceId.innerHTML = data.voices.map(v => 
-                `<option value="${v.raw_id}" ${v.raw_id === selectedVoiceId || v.id === selectedVoiceId ? 'selected' : ''}>${v.name}</option>`
-            ).join("");
-            if (selectedVoiceId) {
-                elements.setVivibeVoiceId.value = selectedVoiceId;
+            if (elements.selectVivibeVoice) {
+                elements.selectVivibeVoice.innerHTML = `<option value="">-- Chọn giọng để tự động điền --</option>` + data.voices.map(v => 
+                    `<option value="${v.raw_id}" ${v.raw_id === selectedVoiceId || v.id === selectedVoiceId ? 'selected' : ''}>${v.name} (${v.raw_id})</option>`
+                ).join("");
             }
+            if (elements.groupVivibeVoicesSelect) {
+                elements.groupVivibeVoicesSelect.classList.remove("hidden");
+            }
+            if (selectedVoiceId && elements.setVivibeVoiceId) {
+                elements.setVivibeVoiceId.value = selectedVoiceId;
+            } else if (!elements.setVivibeVoiceId.value && data.voices[0]) {
+                elements.setVivibeVoiceId.value = data.voices[0].raw_id;
+            }
+            alert(`Đã tìm thấy ${data.voices.length} giọng đọc trên ViVibe!`);
             return data.voices;
         } else {
-            elements.setVivibeVoiceId.innerHTML = `<option value="">Không tìm thấy giọng đọc nào</option>`;
+            alert("Không tìm thấy giọng đọc nào trên tài khoản ViVibe hoặc API Key chưa đúng.");
         }
     } catch (err) {
         console.warn("Lỗi tải giọng ViVibe:", err);
     } finally {
         if (elements.btnFetchVivibeVoices) {
             elements.btnFetchVivibeVoices.disabled = false;
-            elements.btnFetchVivibeVoices.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> Tải Giọng`;
+            elements.btnFetchVivibeVoices.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> Tải Giọng Của Tôi`;
         }
     }
 }
@@ -273,11 +291,18 @@ async function loadSettingsData() {
             
             if (elements.setTtsProvider) elements.setTtsProvider.value = s.tts_provider || "edge_tts";
             if (elements.setVivibeApiKey) elements.setVivibeApiKey.value = s.vivibe_api_key || "";
+            if (elements.setVivibeVoiceId) elements.setVivibeVoiceId.value = s.vivibe_voice_id || "";
             
             if (s.image_provider === "openai_dalle") {
                 elements.groupDalleModel.classList.remove("hidden");
             } else {
                 elements.groupDalleModel.classList.add("hidden");
+            }
+
+            if (s.tts_provider === "vivibe") {
+                if (elements.groupVivibeConfig) elements.groupVivibeConfig.classList.remove("hidden");
+            } else {
+                if (elements.groupVivibeConfig) elements.groupVivibeConfig.classList.add("hidden");
             }
 
             if (s.vivibe_api_key) {
