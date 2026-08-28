@@ -383,13 +383,32 @@ async def api_youtube_oauth2callback(code: Optional[str] = None, error: Optional
 
 @app.post("/api/youtube/auth-code")
 async def api_exchange_youtube_auth_code(req: YouTubeAuthCodeRequest):
-    """Gửi mã ủy quyền OAuth để lấy Token (Thủ công)"""
+    """Gửi mã ủy quyền OAuth để lấy Token (Hỗ trợ cả mã code thô hoặc dán nguyên link URL callback)"""
+    raw_code = req.auth_code.strip()
+    if "code=" in raw_code:
+        import urllib.parse
+        try:
+            parsed = urllib.parse.urlparse(raw_code)
+            qs = urllib.parse.parse_qs(parsed.query)
+            if "code" in qs:
+                raw_code = qs["code"][0]
+            else:
+                raw_code = raw_code.split("code=")[1].split("&")[0]
+        except Exception:
+            if "code=" in raw_code:
+                raw_code = raw_code.split("code=")[1].split("&")[0]
+
     try:
-        await youtube_engine.exchange_code_for_token(req.auth_code)
+        await youtube_engine.exchange_code_for_token(raw_code)
         channel = await youtube_engine.get_channel_info()
         return {"status": "ok", "channel": channel}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        try:
+            await youtube_engine.exchange_code_for_token(raw_code, redirect_uri="urn:ietf:wg:oauth:2.0:oob")
+            channel = await youtube_engine.get_channel_info()
+            return {"status": "ok", "channel": channel}
+        except Exception:
+            raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/youtube/status")
 async def api_get_youtube_status():
