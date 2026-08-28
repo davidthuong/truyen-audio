@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Audio Story Video Studio - Tự Động Tạo Video Truyện YouTube</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="header-brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>AudioStory <span>Studio</span></h1>
+                    <p>Hệ thống tự động tạo Video Truyện Audio YouTube bằng AI (Hỗ trợ 30 - 45 Phút & Custom API)</p>
+                </div>
+            <div class="main-nav-tabs">
+                <button class="nav-tab-btn active" id="nav-btn-studio">
+                    <i class="fa-solid fa-clapperboard"></i> 1. Studio Dựng Video
+                </button>
+                <button class="nav-tab-btn" id="nav-btn-scheduler">
+                    <i class="fa-brands fa-youtube" style="color: #ef4444;"></i> 2. Lên Lịch & Auto YouTube
+                </button>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-outline" id="btn-open-settings" title="Cấu hình OpenAI / ChatGPT API & Custom URL">
+                    <i class="fa-solid fa-key"></i> Cài Đặt API
+                </button>
+                <button class="btn btn-secondary" id="btn-open-folder" title="Mở thư mục chứa video trên máy">
+                    <i class="fa-solid fa-folder-open"></i> Thư mục Video
+                </button>
+                <div class="status-badge" id="system-status">
+                    <span class="pulse-dot"></span> Sẵn sàng
+                </div>
+            </div>
+        </header>
+
+        <!-- View 1: Studio Dựng Video -->
+        <div id="view-studio" class="view-panel">
+            <main class="main-grid">
+                <!-- Left Column: Story Creation & Scene Management -->
+                <section class="panel panel-story">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i class="fa-solid fa-book-open"></i>
+                            <h2>1. Kịch Bản & Phân Cảnh Truyện</h2>
+                        </div>
+                        <div class="tab-switch">
+                            <button class="tab-btn active" id="tab-ai-gen">AI Tự Viết</button>
+                            <button class="tab-btn" id="tab-custom-text">Dán Truyện Sẵn</button>
+                        </div>
+                    </div>
+
+                <!-- Mode AI Generator -->
+                <div class="tab-content" id="content-ai-gen">
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label><i class="fa-solid fa-masks-theater"></i> Thể Loại Truyện</label>
+                            <select id="ai-genre" class="form-control">
+                                <option value="dark_mystery" selected>Kinh Dị / Bí Ẩn / Creepypasta</option>
+                                <option value="romantic_lofi">Tâm Sự / Lofi / Ngôn Tình</option>
+                                <option value="ancient_fantasy">Tiên Hiệp / Cổ Trang / Kiếm Hiệp</option>
+                                <option value="cinematic_realistic">Điện Ảnh / Trinh Thám Hiện Đại</option>
+                                <option value="anime_story">Anime Phiêu Lưu Nghệ Thuật</option>
+                                <option value="ceo_drama">Tổng Tài / Thương Trường / Trả Thù</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label><i class="fa-solid fa-clock"></i> Thời Lượng Mục Tiêu</label>
+                            <select id="ai-duration" class="form-control highlight-select">
+                                <option value="5">Truyện ngắn (~5 Phút)</option>
+                                <option value="15">Truyện vừa (~15 Phút)</option>
+                                <option value="30" selected>Truyện dài (~30 Phút)</option>
+                                <option value="45">Đại tiểu thuyết (~45 Phút)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-lightbulb"></i> Ý Tưởng / Cốt Truyện</label>
+                        <div class="input-with-btn">
+                            <input type="text" id="ai-topic" class="form-control" placeholder="Ví dụ: Căn biệt thự cổ bỏ hoang giữa rừng lúc nửa đêm..." value="Bí ẩn ngôi làng cổ bị lãng quên trong sương mù">
+                            <button class="btn btn-primary" id="btn-generate-story">
+                                <i class="fa-solid fa-sparkles"></i> AI Viết Truyện
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mode Custom Text -->
+                <div class="tab-content hidden" id="content-custom-text">
+                    <div class="form-group">
+                        <div class="flex-between mb-6">
+                            <label><i class="fa-solid fa-file-lines"></i> Dán nội dung truyện thô vào đây</label>
+                            <label class="btn btn-sm btn-outline file-upload-label">
+                                <i class="fa-solid fa-upload"></i> Tải File .TXT
+                                <input type="file" id="file-upload-input" accept=".txt,.md" style="display:none;">
+                            </label>
+                        </div>
+                        <textarea id="custom-story-text" class="form-control" rows="7" placeholder="Dán đoạn văn bản hoặc toàn bộ chương tiểu thuyết của bạn vào đây (hỗ trợ hàng chục nghìn chữ)..."></textarea>
+                    </div>
+                    <button class="btn btn-primary w-full" id="btn-parse-story">
+                        <i class="fa-solid fa-scissors"></i> Tự Động Phân Tách Cảnh & Tạo Prompt Ảnh Cho Toàn Bộ Truyện
+                    </button>
+                </div>
+
+                <!-- Scene List Cards -->
+                <div class="scenes-section">
+                    <div class="scenes-header">
+                        <h3><i class="fa-solid fa-film"></i> Danh Sách Phân Cảnh (<span id="scene-counter">0</span> Cảnh)</h3>
+                        <button class="btn btn-sm btn-outline" id="btn-add-scene">
+                            <i class="fa-solid fa-plus"></i> Thêm Cảnh
+                        </button>
+                    </div>
+                    
+                    <div class="scenes-list" id="scenes-container">
+                        <!-- Scene cards dynamically injected here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Column: Audio & Video Customization -->
+            <section class="panel panel-config">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i class="fa-solid fa-sliders"></i>
+                        <h2>2. Cấu Hình Giọng Đọc & Video</h2>
+                    </div>
+                </div>
+
+                <div class="config-grid">
+                    <!-- Tiêu đề & Thông tin kênh -->
+                    <div class="config-card">
+                        <div class="card-title"><i class="fa-solid fa-heading"></i> Tiêu Đề & Thương Hiệu</div>
+                        <div class="form-group">
+                            <label>Tiêu Đề Video</label>
+                            <input type="text" id="cfg-title" class="form-control" value="Bí Ẩn Ngôi Làng Cổ Trong Sương Mù">
+                        </div>
+                        <div class="form-group">
+                            <label>Tên Kênh / Watermark</label>
+                            <input type="text" id="cfg-channel" class="form-control" value="@TruyenAudioAI">
+                        </div>
+                    </div>
+
+                    <!-- Giọng đọc Edge-TTS -->
+                    <div class="config-card">
+                        <div class="card-title"><i class="fa-solid fa-microphone-lines"></i> Giọng Đọc Truyền Cảm (TTS)</div>
+                        <div class="form-group">
+                            <label>Chọn Giọng Đọc</label>
+                            <select id="cfg-voice" class="form-control">
+                                <option value="vi-VN-HoaiMyNeural" selected>Hoài My (Nữ - Truyền cảm, tâm sự, radio)</option>
+                                <option value="vi-VN-NamMinhNeural">Nam Minh (Nam - Trầm ấm, kiếm hiệp, kinh dị)</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <label>Tốc Độ Đọc</label>
+                                <select id="cfg-rate" class="form-control">
+                                    <option value="-10%">Chậm (-10%)</option>
+                                    <option value="+0%" selected>Tự nhiên (0%)</option>
+                                    <option value="+10%">Hơi nhanh (+10%)</option>
+                                </select>
+                            </div>
+                            <div class="form-group flex-1">
+                                <label>Cao Độ Giọng</label>
+                                <select id="cfg-pitch" class="form-control">
+                                    <option value="-5Hz">Trầm hơn (-5Hz)</option>
+                                    <option value="+0Hz" selected>Chuẩn (+0Hz)</option>
+                                    <option value="+5Hz">Trong hơn (+5Hz)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Visual Style & Định dạng Video -->
+                    <div class="config-card">
+                        <div class="card-title"><i class="fa-solid fa-palette"></i> Phong Cách Hình Ảnh & Tỉ Lệ</div>
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <label>Visual Style Prompt</label>
+                                <select id="cfg-style" class="form-control">
+                                    <option value="dark_mystery" selected>Kinh Dị / Bí Ẩn / Dark Mood</option>
+                                    <option value="romantic_lofi">Tâm Sự / Lofi / Anime Vibe</option>
+                                    <option value="ancient_fantasy">Tiên Hiệp / Cổ Trang Asian</option>
+                                    <option value="cinematic_realistic">Điện Ảnh Chân Thực 8K</option>
+                                    <option value="anime_story">Anime Nghệ Thuật Nhật Bản</option>
+                                    <option value="ceo_drama">Tổng Tài / Thương Trường / Trả Thù</option>
+                                </select>
+                            </div>
+                            <div class="form-group flex-1">
+                                <label>Tỉ Lệ Khung Hình</label>
+                                <select id="cfg-aspect-ratio" class="form-control">
+                                    <option value="16:9" selected>16:9 (YouTube Ngang 1080p)</option>
+                                    <option value="9:16">9:16 (Shorts / TikTok)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Nhạc nền & Hiệu ứng sóng âm -->
+                    <div class="config-card">
+                        <div class="card-title"><i class="fa-solid fa-music"></i> Nhạc Nền (BGM) & Sóng Âm</div>
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <label>Nhạc Nền</label>
+                                <select id="cfg-bgm" class="form-control">
+                                    <option value="ambient_mystery.mp3">Ambient Bí Ẩn / Rùng Rợn</option>
+                                    <option value="lofi_peaceful.mp3">Lofi Nhẹ Nhàng / Thư Giãn</option>
+                                    <option value="">Không dùng nhạc nền</option>
+                                </select>
+                            </div>
+                            <div class="form-group w-120">
+                                <label>Âm Lượng BGM</label>
+                                <select id="cfg-bgm-volume" class="form-control">
+                                    <option value="0.08">8% (Nhẹ)</option>
+                                    <option value="0.15" selected>15% (Vừa chuẩn)</option>
+                                    <option value="0.25">25% (Rõ)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="checkbox-group">
+                            <label class="custom-checkbox">
+                                <input type="checkbox" id="cfg-enable-waveform" checked>
+                                <span class="checkmark"></span>
+                                <span>Thêm hiệu ứng sóng âm (Audio Waveform) nhảy theo điệu đọc</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1-Click Action Render -->
+                <div class="render-action-card">
+                    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                        <button class="btn btn-outline flex-1" id="btn-quick-thumb">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> 🎨 Tạo Thử Thumbnail AI
+                        </button>
+                        <button class="btn btn-outline flex-1" id="btn-quick-desc">
+                            <i class="fa-solid fa-file-lines"></i> 📝 Soạn Thảo Mô Tả SEO
+                        </button>
+                    </div>
+                    <button class="btn btn-success btn-lg w-full" id="btn-start-render">
+                        <i class="fa-solid fa-circle-play"></i> Bắt Đầu Dựng Video Hoàn Chỉnh (Tốc Độ Cao)
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+    <!-- End #view-studio -->
+
+    <!-- View 2: Lên Lịch & Auto-Pilot Kênh YouTube -->
+    <div id="view-scheduler" class="view-panel hidden">
+        <div class="scheduler-container">
+            <!-- YouTube Connection Banner Card -->
+            <div class="channel-box" id="yt-channel-card">
+                <div class="channel-info">
+                    <img id="yt-channel-avatar" src="https://www.youtube.com/s/desktop/d743f786/img/favicon_144x144.png" alt="Avatar" class="channel-avatar">
+                    <div>
+                        <div class="channel-title" id="yt-channel-name">Chưa Kết Nối Kênh YouTube</div>
+                        <div class="channel-sub" id="yt-channel-sub">Đăng nhập tài khoản Google để tự động đăng tải Video & Thumbnail AI</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-outline" id="btn-yt-connect">
+                        <i class="fa-brands fa-youtube" style="color: #ef4444;"></i> <span id="yt-connect-btn-text">🔗 Liên Kết Kênh YouTube</span>
+                    </button>
+                    <button class="btn btn-danger hidden" id="btn-yt-disconnect">
+                        <i class="fa-solid fa-link-slash"></i> Hủy Kết Nối
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scheduler Layout Grid -->
+            <div class="scheduler-grid">
+                <!-- Left: Scheduler Settings -->
+                <div class="panel" style="display: flex; flex-direction: column; gap: 16px;">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <h2>Cài Đặt Lên Lịch Auto-Pilot</h2>
+                        </div>
+                    </div>
+
+                    <!-- Auto-Pilot Toggle -->
+                    <div class="switch-group">
+                        <div>
+                            <div style="font-weight: 700; color: var(--text-main);"><i class="fa-solid fa-robot"></i> Bật Chế Độ Tự Động Sản Xuất (Auto-Pilot)</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Tự động tạo truyện, render video 1080p và upload lên YouTube đúng giờ</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="sched-enable">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- Scheduled Times -->
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-clock"></i> Khung Giờ Đăng Hàng Ngày (Mỗi giờ cách nhau dấu phẩy)</label>
+                        <input type="text" id="sched-times" class="form-control" placeholder="08:00, 12:30, 19:30" value="08:00, 12:30, 19:30">
+                        <small style="color: var(--text-sub); font-size: 0.78rem;">Ví dụ: <code>07:30, 12:00, 19:30</code> (Hệ thống sẽ chạy đúng các khung giờ này)</small>
+                    </div>
+
+                    <!-- Genre & Duration -->
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label><i class="fa-solid fa-masks-theater"></i> Thể Loại Truyện</label>
+                            <select id="sched-genre" class="form-control">
+                                <option value="random_all" selected>🎲 Ngẫu Nhiên / Xoay Vòng Thể Loại (Đổi liên tục)</option>
+                                <option value="dark_mystery">Kinh Dị / Bí Ẩn / Creepypasta</option>
+                                <option value="ceo_drama">Tổng Tài / Thương Trường / Trả Thù</option>
+                                <option value="romantic_lofi">Tâm Sự / Lofi / Ngôn Tình</option>
+                                <option value="ancient_fantasy">Tiên Hiệp / Cổ Trang / Kiếm Hiệp</option>
+                                <option value="cinematic_realistic">Điện Ảnh / Trinh Thám Hiện Đại</option>
+                                <option value="anime_story">Anime Phiêu Lưu Nghệ Thuật</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label><i class="fa-solid fa-stopwatch"></i> Thời Lượng</label>
+                            <select id="sched-duration" class="form-control highlight-select">
+                                <option value="5" selected>⚡ 5 Phút (Phổ thông)</option>
+                                <option value="15">🔥 15 Phút (Đậm đà)</option>
+                                <option value="30">🌟 30 Phút (Siêu dài)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Voice & BGM -->
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label><i class="fa-solid fa-microphone"></i> Giọng Đọc</label>
+                            <select id="sched-voice" class="form-control">
+                                <option value="vi-VN-HoaiMyNeural" selected>Hoài My (Nữ Truyền Cảm)</option>
+                                <option value="vi-VN-NamMinhNeural">Nam Minh (Nam Trầm Ấm)</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label><i class="fa-solid fa-music"></i> Nhạc Nền</label>
+                            <select id="sched-bgm" class="form-control">
+                                <option value="">Tự động theo thể loại</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Auto YouTube Upload Options -->
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label><i class="fa-brands fa-youtube" style="color: #ef4444;"></i> Tự Động Đăng Lên Kênh</label>
+                            <select id="sched-auto-yt" class="form-control">
+                                <option value="true">Bật (Tự upload khi render xong)</option>
+                                <option value="false" selected>Tắt (Chỉ render lưu trên máy)</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label><i class="fa-solid fa-eye"></i> Quyền Riêng Tư</label>
+                            <select id="sched-privacy" class="form-control">
+                                <option value="unlisted" selected>Không công khai (Unlisted)</option>
+                                <option value="public">Công khai ngay (Public)</option>
+                                <option value="private">Riêng tư (Private)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div style="display: flex; gap: 10px; margin-top: 8px;">
+                        <button class="btn btn-primary flex-1" id="btn-save-scheduler">
+                            <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình Lên Lịch
+                        </button>
+                        <button class="btn btn-outline" id="btn-trigger-sched-now" title="Sản xuất ngay 1 video theo cấu hình trên">
+                            <i class="fa-solid fa-bolt"></i> ⚡ Chạy Thử Ngay
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right: Topic Queue & History Log -->
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <!-- Topic Queue Panel -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <i class="fa-solid fa-list-ol"></i>
+                                <h2>Hàng Đợi Ý Tưởng & Đề Tài</h2>
+                            </div>
+                            <div class="tab-switch">
+                                <button class="tab-btn active" id="tab-mode-ai">AI Tự Nghĩ Chủ Đề</button>
+                                <button class="tab-btn" id="tab-mode-queue">Lấy Từ Hàng Đợi</button>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top: 10px;">
+                            <label>Danh sách Ý tưởng (Mỗi dòng 1 cốt truyện - có thể gắn tag <code>[thể_loại]</code>):</label>
+                            <textarea id="sched-topic-queue" class="form-control" style="height: 120px; font-size: 0.85rem; line-height: 1.5;" placeholder="[Tổng Tài] 3 năm sau, tôi trở về thâu tóm công ty của kẻ phản bội&#10;[Kinh Dị] Bí mật ngôi làng cổ bị bỏ hoang trong rừng sâu lúc nửa đêm&#10;[Tiên Hiệp] Đệ tử ngoại môn trùng sinh nghịch thiên cải mệnh&#10;[Lofi] Chuyện tình dang dở dưới cơn mưa mùa thu Hà Nội..."></textarea>
+                            <small style="color: var(--text-sub); font-size: 0.78rem;">💡 <strong>Mẹo:</strong> Gắn thẻ <code>[Tổng Tài]</code>, <code>[Kinh Dị]</code>, <code>[Tiên Hiệp]</code>, <code>[Lofi]</code>, <code>[Anime]</code> ở đầu dòng để mỗi video làm đúng 1 thể loại riêng biệt!</small>
+                        </div>
+                    </div>
+
+                    <!-- History Log Panel -->
+                    <div class="panel" style="flex: 1;">
+                        <div class="panel-header" style="margin-bottom: 12px;">
+                            <div class="panel-title">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                <h2>Nhật Ký Sản Xuất & Lịch Sử Upload</h2>
+                            </div>
+                            <button class="btn btn-sm btn-outline" id="btn-refresh-history">
+                                <i class="fa-solid fa-arrows-rotate"></i> Làm mới
+                            </button>
+                        </div>
+
+                        <div class="history-table-wrapper">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Thời Gian</th>
+                                        <th>Tiêu Đề / Cốt Truyện</th>
+                                        <th>Thể Loại</th>
+                                        <th>Trạng Thái</th>
+                                        <th>YouTube Link</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sched-history-tbody">
+                                    <tr>
+                                        <td colspan="5" style="text-align: center; color: var(--text-sub); padding: 24px;">Chưa có lịch sử sản xuất. Hãy lưu cấu hình hoặc bấm "Chạy Thử Ngay".</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End #view-scheduler -->
+
+    <!-- YouTube OAuth Connect Modal -->
+    <div class="modal-overlay hidden" id="youtube-modal">
+        <div class="modal-card modal-settings" style="max-width: 580px;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fa-brands fa-youtube" style="color: #ef4444;"></i>
+                    <h3>Liên Kết Kênh YouTube (Google OAuth 2.0)</h3>
+                </div>
+                <button class="modal-close" id="btn-close-yt-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; font-size: 0.85rem; line-height: 1.45;">
+                    <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;"><i class="fa-solid fa-circle-info"></i> Khắc phục lỗi "redirect_uri_mismatch":</div>
+                    <div>Trong Google Cloud Console, vào mục <strong>Credentials -> OAuth 2.0 Client IDs</strong>:</div>
+                    <ul style="margin: 6px 0 6px 18px; color: #cbd5e1;">
+                        <li>Nếu là <strong>Web application</strong>: Thêm vào mục <em>Authorized redirect URIs</em> đường dẫn bên dưới.</li>
+                        <li>Hoặc khi tạo Client ID, chọn <strong>Application type = Desktop app</strong> (Khuyên dùng, không bị lỗi URI).</li>
+                    </ul>
+                    <div style="display: flex; gap: 8px; align-items: center; background: rgba(0, 0, 0, 0.4); padding: 6px 10px; border-radius: 6px; margin-top: 6px;">
+                        <code style="color: #34d399; font-size: 0.82rem; flex: 1;" id="txt-redirect-uri">http://localhost:8000/api/youtube/oauth2callback</code>
+                        <button class="btn btn-sm btn-outline" onclick="navigator.clipboard.writeText('http://localhost:8000/api/youtube/oauth2callback'); alert('Đã sao chép Redirect URI!');" style="padding: 2px 8px; font-size: 0.75rem;">Copy</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fa-solid fa-id-badge"></i> Google Client ID</label>
+                    <input type="text" id="yt-client-id" class="form-control" placeholder="xxxx.apps.googleusercontent.com">
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fa-solid fa-key"></i> Google Client Secret</label>
+                    <input type="password" id="yt-client-secret" class="form-control" placeholder="GOCSPX-xxxxxxxxxxxx">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+                    <button class="btn btn-primary flex-1" id="btn-yt-get-auth-url">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> 1. Mở Trang Đăng Nhập Google
+                    </button>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="fa-solid fa-shield-halved"></i> Mã Xác Thực (Chỉ cần nếu Google hiển thị mã code)</label>
+                    <input type="text" id="yt-auth-code" class="form-control" placeholder="Dán mã ủy quyền 4/0xxxx... nhận được từ Google vào đây">
+                </div>
+
+                <button class="btn btn-success w-full" id="btn-yt-confirm-code">
+                    <i class="fa-solid fa-check"></i> 2. Xác Nhận & Kết Nối Kênh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal (API Keys & Custom URL) -->
+    <div class="modal-overlay hidden" id="settings-modal">
+            <div class="modal-card modal-settings">
+                <div class="modal-header">
+                    <div class="modal-title">
+                        <i class="fa-solid fa-sliders"></i>
+                        <h3>Cấu Hình API ChatGPT & Tạo Ảnh AI</h3>
+                    </div>
+                    <button class="modal-close" id="btn-close-settings-modal"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <p class="settings-desc">
+                        Hỗ trợ kết nối trực tiếp OpenAI hoặc các dịch vụ proxy/reverse-proxy tương thích (OneAPI, NewAPI, Groq, OpenRouter, Ollama, DeepSeek...).
+                    </p>
+                    
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-key"></i> OpenAI / ChatGPT API Key</label>
+                        <input type="password" id="set-api-key" class="form-control" placeholder="sk-proj-xxxxxxxxxxxx...">
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-globe"></i> Custom API Base URL</label>
+                        <input type="text" id="set-base-url" class="form-control" placeholder="https://api.openai.com/v1" value="https://api.openai.com/v1">
+                        <small class="form-hint">Mặc định: <code>https://api.openai.com/v1</code> hoặc Custom Proxy URL của bạn.</small>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label><i class="fa-solid fa-brain"></i> Model Viết Truyện (Chat)</label>
+                            <input type="text" id="set-chat-model" class="form-control" placeholder="gpt-4o-mini, gpt-4o, deepseek-chat..." value="gpt-4o-mini">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label><i class="fa-solid fa-image"></i> Dịch Vụ Tạo Ảnh AI</label>
+                            <select id="set-image-provider" class="form-control">
+                                <option value="pollinations" selected>Pollinations AI (Flux - Cực Nhanh & Miễn Phí)</option>
+                                <option value="openai_dalle">OpenAI DALL-E 3 (Sử dụng API Key)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="group-dalle-model">
+                        <label><i class="fa-solid fa-palette"></i> Model Tạo Ảnh</label>
+                        <input type="text" id="set-image-model" class="form-control" placeholder="gpt-image-2, dall-e-3..." value="gpt-image-2">
+                    </div>
+
+                    <div class="settings-footer">
+                        <button class="btn btn-primary" id="btn-save-settings">
+                            <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Render Progress & Result Modal -->
+        <div class="modal-overlay hidden" id="render-modal">
+            <div class="modal-card" style="max-width: 860px;">
+                <div class="modal-header">
+                    <div class="modal-title">
+                        <i class="fa-solid fa-gears fa-spin"></i>
+                        <h3 id="modal-title-text">Đang Xử Lý Video Truyện Audio...</h3>
+                    </div>
+                    <button class="modal-close" id="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div class="modal-body">
+                    <!-- Progress Section -->
+                    <div class="progress-section" id="progress-container">
+                        <div class="progress-info">
+                            <span id="progress-step">Khởi tạo dữ liệu...</span>
+                            <span id="progress-percent">0%</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="progress-fill" style="width: 0%;"></div>
+                        </div>
+                        <div class="pipeline-steps">
+                            <div class="step-item" id="step-tts"><i class="fa-solid fa-microphone"></i> 1. TTS Song Song</div>
+                            <div class="step-item" id="step-img"><i class="fa-solid fa-image"></i> 2. Ảnh AI Song Song</div>
+                            <div class="step-item" id="step-motion"><i class="fa-solid fa-video"></i> 3. Ken Burns Đa Luồng</div>
+                            <div class="step-item" id="step-mix"><i class="fa-solid fa-music"></i> 4. Hòa Âm & BGM</div>
+                            <div class="step-item" id="step-render"><i class="fa-solid fa-film"></i> 5. Render, Thumb & SEO</div>
+                        </div>
+                    </div>
+
+                    <!-- Result Section (Shown when complete) -->
+                    <div class="result-section hidden" id="result-container">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                            <div class="video-preview-wrapper">
+                                <label style="display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 6px;"><i class="fa-solid fa-play"></i> Video Thành Phẩm 1080p</label>
+                                <video id="final-video-player" controls style="width: 100%; border-radius: 8px; background: #000; max-height: 220px;"></video>
+                            </div>
+                            <div class="thumb-preview-box">
+                                <label style="display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 6px;"><i class="fa-solid fa-image"></i> Thumbnail AI Cinematic 8K</label>
+                                <img id="final-thumb-img" src="" alt="Thumbnail AI" style="width: 100%; max-height: 175px; border-radius: 8px; aspect-ratio: 16/9; object-fit: cover; border: 1px solid rgba(255,255,255,0.15); display: block;">
+                                <div style="margin-top: 8px; display: flex; gap: 8px;">
+                                    <button class="btn btn-sm btn-outline flex-1" id="btn-regen-thumb-ai">
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i> Tạo Lại Thumbnail AI Khác
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- YouTube Description & SEO Section -->
+                        <div class="desc-box" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <label style="font-weight: 600; font-size: 0.9rem; color: #38bdf8;">
+                                    <i class="fa-solid fa-file-lines"></i> Mô Tả Video & SEO YouTube (Tự Động)
+                                </label>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-sm btn-secondary" id="btn-regen-desc">
+                                        <i class="fa-solid fa-arrows-rotate"></i> Viết Lại Mô Tả
+                                    </button>
+                                    <button class="btn btn-sm btn-success" id="btn-copy-desc">
+                                        <i class="fa-solid fa-copy"></i> Sao Chép Mô Tả (1-Click)
+                                    </button>
+                                </div>
+                            </div>
+                            <textarea id="final-desc-text" class="form-control" style="width: 100%; height: 130px; font-family: monospace; font-size: 0.85rem; line-height: 1.45; resize: vertical;" placeholder="Đang tạo mô tả video chuẩn SEO..."></textarea>
+                        </div>
+
+                        <div class="result-actions">
+                            <a id="btn-download-video" class="btn btn-primary" href="#" download>
+                                <i class="fa-solid fa-download"></i> Tải Video MP4
+                            </a>
+                            <a id="btn-download-thumb" class="btn btn-outline" href="#" download target="_blank">
+                                <i class="fa-solid fa-image"></i> Tải Thumbnail
+                            </a>
+                            <button class="btn btn-secondary" id="btn-modal-open-folder">
+                                <i class="fa-solid fa-folder-open"></i> Mở Thư Mục
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden Audio Player for TTS Preview -->
+        <audio id="tts-preview-player" class="hidden"></audio>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

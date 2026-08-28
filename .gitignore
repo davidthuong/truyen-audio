@@ -1,0 +1,36 @@
+# Môi trường ảo & Cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# Thư mục build & đóng gói EXE (dung lượng lớn)
+build/
+dist/
+Ban_Clean_Chia_Se/
+*.spec
+
+# Thư mục tạm & Video đầu ra (tránh nặng Git)
+temp/
+output/
+*.mp4
+*.mp3
+*.wav
+
+# File cấu hình bảo mật cá nhân (KHÔNG đẩy lên GitHub)
+settings.json
+client_secret.json
+youtube_token.json
+upload_history.json
+server_crash.log
+*.log
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

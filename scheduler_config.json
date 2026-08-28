@@ -1,0 +1,32 @@
+{
+  "enabled": true,
+  "scheduled_times": [
+    "08:00",
+    "12:30",
+    "19:30"
+  ],
+  "mode": "queue",
+  "topic_queue": [
+    "[Tổng Tài] Anh ký hợp đồng hôn nhân với cô gái mà mình từng từ chối 5 năm trước",
+    "[Tổng Tài] Bị đuổi khỏi tập đoàn, tôi quay lại với tư cách người sở hữu 51% cổ phần",
+    "[Tổng Tài] Cô gái giao nhầm đồ ăn và trở thành người duy nhất khiến vị tổng tài mất ngủ",
+    "[Tổng Tài] Người vợ bị xem thường bất ngờ trở thành cổ đông lớn nhất của tập đoàn",
+    "[Tổng Tài] Tổng tài mất trí nhớ và yêu lại chính người vợ mà anh từng ruồng bỏ",
+    "[Tổng Tài] Đám cưới của kẻ phản bội trở thành ngày tôi công khai thân phận thật",
+    "[Tổng Tài] Cậu nhân viên bị cả công ty coi thường lại chính là con trai chủ tịch",
+    "[Tổng Tài] Cô gái giả làm bạn gái tổng tài nhưng không ngờ anh đã yêu cô từ lâu"
+  ],
+  "genre": "ceo_drama",
+  "duration": 30,
+  "voice": "vi-VN-HoaiMyNeural",
+  "rate": "+0%",
+  "pitch": "+0Hz",
+  "bgm_name": "",
+  "bgm_volume": 0.15,
+  "aspect_ratio": "16:9",
+  "enable_waveform": true,
+  "auto_upload_youtube": true,
+  "privacy_status": "public",
+  "last_run_date": "2026-08-28",
+  "executed_slots_today": []
+}
