@@ -534,6 +534,43 @@
                     </div>
 
                     <hr style="border: 0; border-top: 1px solid var(--border); margin: 18px 0;">
+                    <div style="font-weight: 700; color: #c084fc; margin-bottom: 10px; font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between;">
+                        <span><i class="fa-solid fa-microphone-lines"></i> Cấu Hình Giọng Đọc ViVibe AI (LucyAI TTS)</span>
+                        <a href="https://vivibe.app/docs/api-keys" target="_blank" style="color: #38bdf8; font-size: 0.8rem; text-decoration: none;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Lấy API Key</a>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label><i class="fa-solid fa-satellite-dish"></i> Động Cơ TTS Chính</label>
+                            <select id="set-tts-provider" class="form-control">
+                                <option value="edge_tts" selected>Microsoft Edge-TTS (Miễn phí, tốc độ cao)</option>
+                                <option value="vivibe">ViVibe AI Voice (Giọng đọc trí tuệ nhân tạo LucyAI)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="group-vivibe-config">
+                        <div class="form-group">
+                            <label><i class="fa-solid fa-key"></i> ViVibe API Key</label>
+                            <input type="password" id="set-vivibe-api-key" class="form-control" placeholder="Dán API Key từ vivibe.app/docs/api-keys vào đây...">
+                        </div>
+
+                        <div class="form-row" style="align-items: flex-end;">
+                            <div class="form-group flex-1">
+                                <label><i class="fa-solid fa-user-tie"></i> Giọng Đọc ViVibe (Voice ID)</label>
+                                <select id="set-vivibe-voice-id" class="form-control">
+                                    <option value="">-- Bấm 'Tải Giọng' hoặc dán ID --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <button class="btn btn-outline" type="button" id="btn-fetch-vivibe-voices" style="height: 42px; white-space: nowrap;">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Tải Giọng
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--border); margin: 18px 0;">
                     <div style="font-weight: 700; color: #38bdf8; margin-bottom: 10px; font-size: 0.95rem;">
                         <i class="fa-solid fa-user-shield"></i> Bảo Mật Đăng Nhập (Truy Cập Trực Tiếp Qua IP VPS)
                     </div>

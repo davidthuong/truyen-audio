@@ -64,6 +64,11 @@ const elements = {
     setAuthUsername: document.getElementById("set-auth-username"),
     setAuthPassword: document.getElementById("set-auth-password"),
     setAuthEnabled: document.getElementById("set-auth-enabled"),
+    setTtsProvider: document.getElementById("set-tts-provider"),
+    setVivibeApiKey: document.getElementById("set-vivibe-api-key"),
+    setVivibeVoiceId: document.getElementById("set-vivibe-voice-id"),
+    btnFetchVivibeVoices: document.getElementById("btn-fetch-vivibe-voices"),
+    groupVivibeConfig: document.getElementById("group-vivibe-config"),
     
     // Render Modal
     renderModal: document.getElementById("render-modal"),
@@ -160,6 +165,20 @@ function initEvents() {
             elements.groupDalleModel.classList.add("hidden");
         }
     });
+
+    if (elements.setTtsProvider) {
+        elements.setTtsProvider.addEventListener("change", (e) => {
+            if (e.target.value === "vivibe") {
+                elements.groupVivibeConfig.classList.remove("hidden");
+            } else {
+                elements.groupVivibeConfig.classList.add("hidden");
+            }
+        });
+    }
+
+    if (elements.btnFetchVivibeVoices) {
+        elements.btnFetchVivibeVoices.addEventListener("click", () => fetchVivibeVoicesList());
+    }
     
     // Modal Close
     elements.btnCloseModal.addEventListener("click", () => {
@@ -191,7 +210,7 @@ async function loadInitialConfig() {
         const resp = await fetch("/api/config");
         if (resp.ok) {
             const data = await resp.json();
-            if (data.voices) {
+            if (data.voices && elements.cfgVoice) {
                 elements.cfgVoice.innerHTML = data.voices.map(v => 
                     `<option value="${v.id}" ${v.default ? 'selected' : ''}>${v.name}</option>`
                 ).join("");
@@ -199,6 +218,41 @@ async function loadInitialConfig() {
         }
     } catch (err) {
         console.warn("Không thể tải config:", err);
+    }
+}
+
+// Tải danh sách giọng đọc từ ViVibe JSON-RPC API
+async function fetchVivibeVoicesList(selectedVoiceId = "") {
+    const key = elements.setVivibeApiKey ? elements.setVivibeApiKey.value.trim() : "";
+    if (!key) {
+        alert("Vui lòng nhập ViVibe API Key trước khi tải danh sách giọng!");
+        return;
+    }
+    if (elements.btnFetchVivibeVoices) {
+        elements.btnFetchVivibeVoices.disabled = true;
+        elements.btnFetchVivibeVoices.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+    }
+    try {
+        const resp = await fetch(`/api/vivibe/voices?key=${encodeURIComponent(key)}`);
+        const data = await resp.json();
+        if (data.voices && data.voices.length > 0) {
+            elements.setVivibeVoiceId.innerHTML = data.voices.map(v => 
+                `<option value="${v.raw_id}" ${v.raw_id === selectedVoiceId || v.id === selectedVoiceId ? 'selected' : ''}>${v.name}</option>`
+            ).join("");
+            if (selectedVoiceId) {
+                elements.setVivibeVoiceId.value = selectedVoiceId;
+            }
+            return data.voices;
+        } else {
+            elements.setVivibeVoiceId.innerHTML = `<option value="">Không tìm thấy giọng đọc nào</option>`;
+        }
+    } catch (err) {
+        console.warn("Lỗi tải giọng ViVibe:", err);
+    } finally {
+        if (elements.btnFetchVivibeVoices) {
+            elements.btnFetchVivibeVoices.disabled = false;
+            elements.btnFetchVivibeVoices.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> Tải Giọng`;
+        }
     }
 }
 
@@ -217,10 +271,17 @@ async function loadSettingsData() {
             if (elements.setAuthPassword) elements.setAuthPassword.value = s.auth_password || "admin123";
             if (elements.setAuthEnabled) elements.setAuthEnabled.checked = s.auth_enabled !== false;
             
+            if (elements.setTtsProvider) elements.setTtsProvider.value = s.tts_provider || "edge_tts";
+            if (elements.setVivibeApiKey) elements.setVivibeApiKey.value = s.vivibe_api_key || "";
+            
             if (s.image_provider === "openai_dalle") {
                 elements.groupDalleModel.classList.remove("hidden");
             } else {
                 elements.groupDalleModel.classList.add("hidden");
+            }
+
+            if (s.vivibe_api_key) {
+                await fetchVivibeVoicesList(s.vivibe_voice_id || "");
             }
         }
     } catch (err) {
@@ -241,7 +302,10 @@ async function saveSettingsData() {
         image_model: elements.setImageModel.value.trim() || "dall-e-3",
         auth_enabled: elements.setAuthEnabled ? elements.setAuthEnabled.checked : true,
         auth_username: elements.setAuthUsername ? elements.setAuthUsername.value.trim() : "admin",
-        auth_password: elements.setAuthPassword ? elements.setAuthPassword.value.trim() : "admin123"
+        auth_password: elements.setAuthPassword ? elements.setAuthPassword.value.trim() : "admin123",
+        tts_provider: elements.setTtsProvider ? elements.setTtsProvider.value : "edge_tts",
+        vivibe_api_key: elements.setVivibeApiKey ? elements.setVivibeApiKey.value.trim() : "",
+        vivibe_voice_id: elements.setVivibeVoiceId ? elements.setVivibeVoiceId.value.trim() : ""
     };
 
     try {
@@ -251,8 +315,9 @@ async function saveSettingsData() {
             body: JSON.stringify(payload)
         });
         if (resp.ok) {
-            alert("Đã lưu cấu hình API & Bảo mật thành công!");
+            alert("Đã lưu cấu hình API, ViVibe TTS & Bảo mật thành công!");
             elements.settingsModal.classList.add("hidden");
+            await loadInitialConfig();
         }
     } catch (err) {
         alert("Lỗi lưu cấu hình: " + err.message);

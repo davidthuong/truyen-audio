@@ -40,7 +40,11 @@ DEFAULT_SETTINGS = {
     "default_bgm_volume": 0.15,
     "auth_enabled": True,
     "auth_username": "admin",
-    "auth_password": "admin123"
+    "auth_password": "admin123",
+    "tts_provider": "edge_tts",
+    "vivibe_api_key": "",
+    "vivibe_voice_id": "",
+    "vivibe_speed": 1.0
 }
 
 def load_settings() -> Dict[str, Any]:

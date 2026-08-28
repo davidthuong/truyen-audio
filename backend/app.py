@@ -100,6 +100,10 @@ class SettingsModel(BaseModel):
     auth_enabled: Optional[bool] = True
     auth_username: Optional[str] = "admin"
     auth_password: Optional[str] = "admin123"
+    tts_provider: Optional[str] = "edge_tts"
+    vivibe_api_key: Optional[str] = ""
+    vivibe_voice_id: Optional[str] = ""
+    vivibe_speed: Optional[float] = 1.0
 
 class StoryGenRequest(BaseModel):
     genre: str = "dark_mystery"
@@ -188,15 +192,32 @@ class SchedulerConfigRequest(BaseModel):
 
 @app.get("/api/config")
 async def get_app_config():
-    """Lấy danh sách cấu hình, giọng đọc, styles và BGM có sẵn"""
+    """Lấy danh sách cấu hình, giọng đọc (bao gồm cả ViVibe AI nếu đã cấu hình), styles và BGM có sẵn"""
     bgm_files = [f.name for f in BGM_DIR.glob("*.mp3")]
+    settings = load_settings()
+    
+    all_voices = list(TTS_VOICES)
+    if settings.get("vivibe_api_key"):
+        try:
+            v_voices = await tts_engine.get_vivibe_voices()
+            if v_voices:
+                all_voices = v_voices + all_voices
+        except Exception:
+            pass
+
     return {
-        "voices": TTS_VOICES,
+        "voices": all_voices,
         "styles": VISUAL_STYLES,
         "aspect_ratios": ASPECT_RATIOS,
         "bgm_list": bgm_files,
-        "settings": load_settings()
+        "settings": settings
     }
+
+@app.get("/api/vivibe/voices")
+async def api_get_vivibe_voices(key: Optional[str] = None):
+    """Lấy danh sách giọng đọc trực tiếp từ ViVibe JSON-RPC API"""
+    voices = await tts_engine.get_vivibe_voices(api_key=key)
+    return {"status": "ok", "voices": voices}
 
 @app.get("/api/settings")
 async def get_settings():
