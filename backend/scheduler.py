@@ -15,15 +15,21 @@ from backend.audio_engine import audio_engine
 from backend.render_engine import render_engine
 from backend.youtube_engine import youtube_engine
 
+VN_TZ = datetime.timezone(datetime.timedelta(hours=7))
+
 def safe_log(msg: Any):
-    """Ghi log an toàn tránh lỗi UnicodeEncodeError trên Windows"""
+    """Ghi log an toàn kèm mốc thời gian chuẩn Việt Nam (GMT+7)"""
     try:
-        print(f"[AutoScheduler] {msg}")
+        t_str = datetime.datetime.now(VN_TZ).strftime("%H:%M:%S")
+        print(f"[{t_str}][AutoScheduler] {msg}")
     except UnicodeEncodeError:
         try:
-            print(f"[AutoScheduler] {str(msg).encode('ascii', 'replace').decode('ascii')}")
+            t_str = datetime.datetime.now(VN_TZ).strftime("%H:%M:%S")
+            print(f"[{t_str}][AutoScheduler] {str(msg).encode('ascii', 'replace').decode('ascii')}")
         except Exception:
             pass
+    except Exception:
+        print(f"[AutoScheduler] {msg}")
 
 SCHEDULER_CONFIG_FILE = BASE_DIR / "scheduler_config.json"
 UPLOAD_HISTORY_FILE = BASE_DIR / "upload_history.json"
@@ -125,7 +131,7 @@ class AutoScheduler:
         if not config.get("enabled", False):
             return
 
-        now = datetime.datetime.now()
+        now = datetime.datetime.now(VN_TZ)
         today_str = now.strftime("%Y-%m-%d")
         current_time_str = now.strftime("%H:%M")
 
@@ -153,7 +159,7 @@ class AutoScheduler:
         config = self.load_config()
         history_record = {
             "id": f"auto_{int(time.time())}",
-            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "created_at": datetime.datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S"),
             "source": source,
             "title": "",
             "genre": config.get("genre", "dark_mystery"),
