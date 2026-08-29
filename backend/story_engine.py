@@ -120,6 +120,7 @@ Chỉ trả về mảng JSON!"""
         scenes_per_chapter = max(3, total_scenes // num_chapters)
 
         # Bước 1: Lập dàn ý các chương
+        print(f"[Custom AI] Đang lập dàn ý {num_chapters} chương cho truyện {target_minutes} phút ({model})...")
         outline_prompt = f"""Bạn là một tiểu thuyết gia và biên kịch audio chuyên nghiệp.
 Hãy lập dàn ý một câu chuyện dài {target_minutes} phút, thể loại '{genre}', chủ đề: '{topic}'.
 Hãy chia câu chuyện thành đúng {num_chapters} chương (hồi) có cốt truyện hấp dẫn, kịch tính, nút thắt và cao trào.
@@ -150,6 +151,7 @@ Chỉ trả về JSON Array."""
                         m = re.search(r"\[.*\]", content, re.DOTALL)
                         if m:
                             chapters_outline = json.loads(m.group(0))
+                            print(f"[Custom AI] Đã lập xong dàn ý {len(chapters_outline)} chương! Bắt đầu viết chi tiết...")
                     else:
                         err_body = await resp.text()
                         print(f"[Custom AI] Lỗi lập dàn ý ({resp.status}): {err_body[:120]}")
@@ -158,6 +160,7 @@ Chỉ trả về JSON Array."""
 
         if not chapters_outline:
             # Fallback tạo dàn ý cơ bản
+            print("[Custom AI] Sử dụng dàn ý mặc định để tiếp tục viết...")
             chapters_outline = [
                 {"chapter": i+1, "title": f"Hồi {i+1}", "summary": f"Diễn biến phần {i+1} của câu chuyện {topic}"}
                 for i in range(num_chapters)
@@ -167,8 +170,10 @@ Chỉ trả về JSON Array."""
         sem_chap = asyncio.Semaphore(2)
 
         async def generate_single_chapter(chap_idx: int, chap: Dict[str, Any]):
+            chap_title = chap.get('title', f'Chương {chap_idx+1}')
+            print(f"[Custom AI] Đang viết chi tiết {chap_title}...")
             chap_prompt = f"""Dựa vào cốt truyện thể loại '{genre}', chủ đề '{topic}'.
-Hãy viết kịch bản chi tiết cho Chương {chap.get('chapter', chap_idx+1)}: '{chap.get('title', '')}' (Nội dung: {chap.get('summary', '')}).
+Hãy viết kịch bản chi tiết cho Chương {chap.get('chapter', chap_idx+1)}: '{chap_title}' (Nội dung: {chap.get('summary', '')}).
 Chia thành {scenes_per_chapter} phân cảnh (scenes) kể chuyện sâu sắc, mỗi cảnh gồm 100-180 từ lời kể tiếng Việt và 1 prompt tiếng Anh miêu tả hình ảnh.
 Định dạng trả về:
 [
@@ -191,7 +196,9 @@ Chỉ trả lời mảng JSON."""
                                     content = data["choices"][0]["message"]["content"]
                                     m = re.search(r"\[.*\]", content, re.DOTALL)
                                     if m:
-                                        return chap_idx, chap, json.loads(m.group(0))
+                                        sc_list = json.loads(m.group(0))
+                                        print(f"[Custom AI] Đã viết xong {chap_title} ({len(sc_list)} phân cảnh)")
+                                        return chap_idx, chap, sc_list
                                 else:
                                     err_txt = await resp.text()
                                     print(f"[Custom AI] Chương {chap_idx+1} HTTP {resp.status}: {err_txt[:100]}")
@@ -218,6 +225,7 @@ Chỉ trả lời mảng JSON."""
                         scene_counter += 1
 
         if all_scenes:
+            print(f"[Custom AI] Hoàn tất toàn bộ kịch bản: Tổng cộng {len(all_scenes)} phân cảnh!")
             return all_scenes
 
         return await self._generate_story_pollinations_or_fallback(genre, topic, total_scenes)

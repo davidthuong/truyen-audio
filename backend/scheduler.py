@@ -5,6 +5,7 @@ import time
 import random
 import datetime
 import asyncio
+import concurrent.futures
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from backend.config import BASE_DIR, OUTPUT_DIR, TEMP_DIR, BGM_DIR, load_settings
@@ -231,7 +232,7 @@ class AutoScheduler:
             if not scenes:
                 raise RuntimeError("Không thể tạo kịch bản từ Story Engine.")
 
-            # 3. Tạo Giọng đọc TTS & Subtitles
+            # 3. Tạo Giọng đọc TTS & Subtitles SONG SONG (5 luồng)
             total_scenes = len(scenes)
             settings = load_settings()
             selected_voice = config.get("voice", "").strip()
@@ -241,41 +242,58 @@ class AutoScheduler:
                 else:
                     selected_voice = settings.get("default_voice", "vi-VN-HoaiMyNeural")
 
-            safe_log(f"Dang tao TTS cho {total_scenes} canh voi giong doc: '{selected_voice}'...")
-            scene_audio_files = []
-            scene_srt_files = []
+            safe_log(f"Dang tao TTS song song cho {total_scenes} canh voi giong doc: '{selected_voice}'...")
+            
+            sem_tts = asyncio.Semaphore(5)
+            completed_tts = 0
 
-            for idx, sc in enumerate(scenes, start=1):
+            async def run_single_tts(idx, sc):
+                nonlocal completed_tts
                 a_path = str(job_dir / f"voice_sc_{idx}.mp3")
                 s_path = str(job_dir / f"sub_sc_{idx}.srt")
-                res = await tts_engine.generate_speech(
-                    text=sc["text"],
-                    output_audio_path=a_path,
-                    output_srt_path=s_path,
-                    voice=selected_voice,
-                    rate=config.get("rate", "+0%"),
-                    pitch=config.get("pitch", "+0Hz")
-                )
-                scene_audio_files.append(a_path)
-                scene_srt_files.append((s_path, res["duration"], sc["text"]))
+                async with sem_tts:
+                    res = await tts_engine.generate_speech(
+                        text=sc["text"],
+                        output_audio_path=a_path,
+                        output_srt_path=s_path,
+                        voice=selected_voice,
+                        rate=config.get("rate", "+0%"),
+                        pitch=config.get("pitch", "+0Hz")
+                    )
+                    completed_tts += 1
+                    safe_log(f"[TTS] Da tao giong doc {completed_tts}/{total_scenes} canh ({res.get('duration', 0):.1f}s)...")
+                    return idx, a_path, (s_path, res["duration"], sc["text"])
 
-            # 4. Tạo Hình ảnh AI
+            tts_tasks = [run_single_tts(i, sc) for i, sc in enumerate(scenes, start=1)]
+            tts_results = await asyncio.gather(*tts_tasks)
+            tts_results.sort(key=lambda x: x[0])
+            scene_audio_files = [r[1] for r in tts_results]
+            scene_srt_files = [r[2] for r in tts_results]
+
+            # 4. Tạo Hình ảnh AI (Tuần tự an toàn kèm tiến độ)
             safe_log(f"Dang tao {total_scenes} hinh anh AI...")
             scene_images = []
+            master_seed = random.randint(100000, 999999)
             for idx, sc in enumerate(scenes, start=1):
                 img_path = str(job_dir / f"img_sc_{idx}.jpg")
+                safe_log(f"[Anh AI] Dang ve hinh anh phan canh {idx}/{total_scenes}...")
                 await visual_engine.generate_image(
                     prompt=sc["image_prompt"],
                     output_image_path=img_path,
                     style_key=config.get("genre", "dark_mystery"),
-                    aspect_ratio=config.get("aspect_ratio", "16:9")
+                    aspect_ratio=config.get("aspect_ratio", "16:9"),
+                    seed=master_seed
                 )
                 scene_images.append(img_path)
 
-            # 5. Ken Burns & Render Video 1080p
-            safe_log("Dang render clips Ken Burns va noi video...")
-            scene_video_clips = []
-            for idx, (img_p, (_, sc_dur, _)) in enumerate(zip(scene_images, scene_srt_files), start=1):
+            # 5. Ken Burns & Render Video 1080p (Da luong CPU)
+            safe_log(f"Dang render clips Ken Burns da luong CPU cho {total_scenes} clips...")
+            loop = asyncio.get_running_loop()
+            completed_clips = 0
+            max_workers = min(4, os.cpu_count() or 2)
+
+            def render_clip_sync(idx, img_p, sc_dur):
+                nonlocal completed_clips
                 clip_path = str(job_dir / f"clip_sc_{idx}.mp4")
                 visual_engine.create_ken_burns_video(
                     image_path=img_p,
@@ -283,7 +301,18 @@ class AutoScheduler:
                     duration=sc_dur,
                     aspect_ratio=config.get("aspect_ratio", "16:9")
                 )
-                scene_video_clips.append(clip_path)
+                completed_clips += 1
+                safe_log(f"[Ken Burns] Render xong {completed_clips}/{total_scenes} clips...")
+                return idx, clip_path
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                tasks = [
+                    loop.run_in_executor(executor, render_clip_sync, idx, img_p, sc_dur)
+                    for idx, (img_p, (_, sc_dur, _)) in enumerate(zip(scene_images, scene_srt_files), start=1)
+                ]
+                clip_results = await asyncio.gather(*tasks)
+                clip_results.sort(key=lambda x: x[0])
+                scene_video_clips = [r[1] for r in clip_results]
 
             base_video_path = str(job_dir / "base_video.mp4")
             render_engine.concat_scene_videos(scene_video_clips, base_video_path)
