@@ -98,6 +98,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     initEvents();
     await loadInitialConfig();
     await loadSettingsData();
+    if (typeof loadSchedulerConfig === "function") {
+        await loadSchedulerConfig();
+    }
     renderScenesList(); // Chỉ hiển thị trạng thái ban đầu, KHÔNG tự động gọi API viết truyện
 });
 
@@ -344,6 +347,9 @@ async function saveSettingsData() {
             alert("Đã lưu cấu hình API, ViVibe TTS & Bảo mật thành công!");
             elements.settingsModal.classList.add("hidden");
             await loadInitialConfig();
+            if (typeof loadSchedulerConfig === "function") {
+                await loadSchedulerConfig();
+            }
         }
     } catch (err) {
         alert("Lỗi lưu cấu hình: " + err.message);
@@ -1146,12 +1152,13 @@ async function loadSchedulerConfig() {
             if (cfgResp.ok) {
                 const appCfg = await cfgResp.json();
                 if (appCfg.voices && appCfg.voices.length > 0 && voiceSelect) {
-                    const currentVoice = config.voice || "vi-VN-HoaiMyNeural";
+                    const currentVoice = config.voice;
                     voiceSelect.innerHTML = appCfg.voices.map(v => 
-                        `<option value="${v.id}" ${v.id === currentVoice ? 'selected' : ''}>${v.name}</option>`
+                        `<option value="${v.id}" ${(currentVoice ? v.id === currentVoice : v.default) ? 'selected' : ''}>${v.name}</option>`
                     ).join("");
-                    // Nếu giá trị hiện tại có trong danh sách thì gán đúng
-                    voiceSelect.value = currentVoice;
+                    if (currentVoice) {
+                        voiceSelect.value = currentVoice;
+                    }
                 }
                 if (appCfg.bgm_list && bgmSelect && bgmSelect.options.length <= 1) {
                     appCfg.bgm_list.forEach(bgm => {

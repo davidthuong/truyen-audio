@@ -19,18 +19,18 @@ from backend.youtube_engine import youtube_engine
 VN_TZ = datetime.timezone(datetime.timedelta(hours=7))
 
 def safe_log(msg: Any):
-    """Ghi log an toàn kèm mốc thời gian chuẩn Việt Nam (GMT+7)"""
+    """Ghi log an toàn kèm mốc thời gian chuẩn Việt Nam (GMT+7) với unbuffered flush"""
     try:
         t_str = datetime.datetime.now(VN_TZ).strftime("%H:%M:%S")
-        print(f"[{t_str}][AutoScheduler] {msg}")
+        print(f"[{t_str}][AutoScheduler] {msg}", flush=True)
     except UnicodeEncodeError:
         try:
             t_str = datetime.datetime.now(VN_TZ).strftime("%H:%M:%S")
-            print(f"[{t_str}][AutoScheduler] {str(msg).encode('ascii', 'replace').decode('ascii')}")
+            print(f"[{t_str}][AutoScheduler] {str(msg).encode('ascii', 'replace').decode('ascii')}", flush=True)
         except Exception:
             pass
     except Exception:
-        print(f"[AutoScheduler] {msg}")
+        print(f"[AutoScheduler] {msg}", flush=True)
 
 SCHEDULER_CONFIG_FILE = BASE_DIR / "scheduler_config.json"
 UPLOAD_HISTORY_FILE = BASE_DIR / "upload_history.json"

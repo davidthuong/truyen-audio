@@ -125,11 +125,16 @@ class TTSEngine:
         # Kiểm tra nếu người dùng chọn giọng ViVibe hoặc cấu hình provider là vivibe
         is_vivibe = (
             voice.startswith("vivibe:") or 
-            (tts_provider == "vivibe" and vivibe_api_key and not voice.startswith("vi-VN-") and not voice.startswith("en-US-"))
+            (tts_provider == "vivibe" and vivibe_api_key and not voice.startswith("en-US-"))
         )
 
         if is_vivibe and vivibe_api_key:
-            target_voice_id = voice.replace("vivibe:", "").strip() or settings.get("vivibe_voice_id", "").replace("vivibe:", "").strip()
+            target_voice_id = ""
+            if voice.startswith("vivibe:"):
+                target_voice_id = voice.replace("vivibe:", "").strip()
+            if not target_voice_id:
+                target_voice_id = settings.get("vivibe_voice_id", "").replace("vivibe:", "").strip()
+
             if target_voice_id:
                 try:
                     res = await self._generate_speech_vivibe(
@@ -143,7 +148,7 @@ class TTSEngine:
                     )
                     return res
                 except Exception as e:
-                    print(f"[ViVibe TTS] Lỗi khi tạo giọng qua ViVibe ({e}). Đang tự động chuyển sang Edge-TTS dự phòng...")
+                    print(f"[ViVibe TTS] Lỗi khi tạo giọng qua ViVibe ({e}). Đang tự động chuyển sang Edge-TTS dự phòng...", flush=True)
 
         # Mặc định / Fallback dùng Edge-TTS
         return await self._generate_speech_edge_tts(
@@ -196,7 +201,7 @@ class TTSEngine:
             }
         }
 
-        print(f"[ViVibe TTS] Dang gui yeu cau doc ({len(text)} ky tu) - Voice ID: {voice_id}...")
+        print(f"[ViVibe TTS] Đang gửi yêu cầu đọc ({len(text)} ký tự) - Voice ID: {voice_id}...", flush=True)
         timeout = aiohttp.ClientTimeout(total=45, connect=10)
         
         async with aiohttp.ClientSession(timeout=timeout) as session:

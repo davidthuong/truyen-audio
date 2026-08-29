@@ -196,14 +196,52 @@ async def get_app_config():
     bgm_files = [f.name for f in BGM_DIR.glob("*.mp3")]
     settings = load_settings()
     
-    all_voices = list(TTS_VOICES)
-    if settings.get("vivibe_api_key"):
-        try:
-            v_voices = await tts_engine.get_vivibe_voices()
-            if v_voices:
-                all_voices = v_voices + all_voices
-        except Exception:
-            pass
+    vivibe_voices = []
+    vivibe_key = settings.get("vivibe_api_key", "").strip()
+    vivibe_vid = settings.get("vivibe_voice_id", "").strip().replace("vivibe:", "")
+    tts_prov = settings.get("tts_provider", "edge_tts")
+
+    if vivibe_key or tts_prov == "vivibe" or vivibe_vid:
+        # 1. Thử lấy danh sách giọng từ tài khoản ViVibe
+        if vivibe_key:
+            try:
+                v_voices = await tts_engine.get_vivibe_voices(api_key=vivibe_key)
+                if v_voices:
+                    vivibe_voices.extend(v_voices)
+            except Exception as e:
+                print(f"[ViVibe] Lỗi nạp danh sách giọng: {e}")
+
+        # 2. Nếu người dùng có nhập Voice ID cụ thể trong Cài đặt mà chưa có trong danh sách
+        if vivibe_vid:
+            existing_ids = [v.get("id", "").replace("vivibe:", "") for v in vivibe_voices] + [v.get("raw_id", "") for v in vivibe_voices]
+            if vivibe_vid not in existing_ids:
+                vivibe_voices.insert(0, {
+                    "id": f"vivibe:{vivibe_vid}",
+                    "raw_id": vivibe_vid,
+                    "name": f"⭐ [ViVibe AI] Giọng Của Bạn ({vivibe_vid})",
+                    "gender": "Custom",
+                    "default": True if tts_prov == "vivibe" else False
+                })
+        elif not vivibe_voices and vivibe_key:
+            # Có key nhưng chưa có voice ID, thêm option ViVibe mặc định
+            vivibe_voices.insert(0, {
+                "id": "vivibe:default",
+                "raw_id": "default",
+                "name": "⭐ [ViVibe AI] Giọng ViVibe Mặc Định (LucyAI)",
+                "gender": "Custom",
+                "default": True if tts_prov == "vivibe" else False
+            })
+
+    # Đưa các giọng ViVibe AI lên đầu danh sách để người dùng dễ chọn
+    all_voices = []
+    if vivibe_voices:
+        all_voices.extend(vivibe_voices)
+    
+    for v in TTS_VOICES:
+        v_copy = dict(v)
+        if vivibe_voices and tts_prov == "vivibe":
+            v_copy["default"] = False
+        all_voices.append(v_copy)
 
     return {
         "voices": all_voices,
