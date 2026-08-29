@@ -1138,19 +1138,35 @@ async function loadSchedulerConfig() {
             document.getElementById("sched-topic-queue").value = config.topic_queue.join("\n");
         }
 
-        // Tải danh sách BGM vào select
+        // Tải danh sách Giọng đọc & BGM vào select
+        const voiceSelect = document.getElementById("sched-voice");
         const bgmSelect = document.getElementById("sched-bgm");
-        if (bgmSelect && bgmSelect.options.length <= 1) {
+        try {
             const cfgResp = await fetch("/api/config");
-            const appCfg = await cfgResp.json();
-            if (appCfg.bgm_list) {
-                appCfg.bgm_list.forEach(bgm => {
-                    const opt = document.createElement("option");
-                    opt.value = bgm;
-                    opt.innerText = bgm.replace(".mp3", "").replace("_", " ").toUpperCase();
-                    bgmSelect.appendChild(opt);
-                });
+            if (cfgResp.ok) {
+                const appCfg = await cfgResp.json();
+                if (appCfg.voices && appCfg.voices.length > 0 && voiceSelect) {
+                    const currentVoice = config.voice || "vi-VN-HoaiMyNeural";
+                    voiceSelect.innerHTML = appCfg.voices.map(v => 
+                        `<option value="${v.id}" ${v.id === currentVoice ? 'selected' : ''}>${v.name}</option>`
+                    ).join("");
+                    // Nếu giá trị hiện tại có trong danh sách thì gán đúng
+                    voiceSelect.value = currentVoice;
+                }
+                if (appCfg.bgm_list && bgmSelect && bgmSelect.options.length <= 1) {
+                    appCfg.bgm_list.forEach(bgm => {
+                        const opt = document.createElement("option");
+                        opt.value = bgm;
+                        opt.innerText = bgm.replace(".mp3", "").replace("_", " ").toUpperCase();
+                        bgmSelect.appendChild(opt);
+                    });
+                    if (config.bgm_name) {
+                        bgmSelect.value = config.bgm_name;
+                    }
+                }
             }
+        } catch (e) {
+            console.warn("Lỗi tải danh sách voices/bgm cho scheduler:", e);
         }
     } catch (e) {
         console.warn("Lỗi tải cấu hình Lên lịch:", e);

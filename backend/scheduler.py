@@ -233,7 +233,15 @@ class AutoScheduler:
 
             # 3. Tạo Giọng đọc TTS & Subtitles
             total_scenes = len(scenes)
-            safe_log(f"Dang tao TTS cho {total_scenes} canh...")
+            settings = load_settings()
+            selected_voice = config.get("voice", "").strip()
+            if not selected_voice or selected_voice == "default":
+                if settings.get("tts_provider") == "vivibe" and settings.get("vivibe_voice_id"):
+                    selected_voice = f"vivibe:{settings.get('vivibe_voice_id')}"
+                else:
+                    selected_voice = settings.get("default_voice", "vi-VN-HoaiMyNeural")
+
+            safe_log(f"Dang tao TTS cho {total_scenes} canh voi giong doc: '{selected_voice}'...")
             scene_audio_files = []
             scene_srt_files = []
 
@@ -244,7 +252,7 @@ class AutoScheduler:
                     text=sc["text"],
                     output_audio_path=a_path,
                     output_srt_path=s_path,
-                    voice=config.get("voice", "vi-VN-HoaiMyNeural"),
+                    voice=selected_voice,
                     rate=config.get("rate", "+0%"),
                     pitch=config.get("pitch", "+0Hz")
                 )
