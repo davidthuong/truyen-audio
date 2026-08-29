@@ -32,7 +32,12 @@ def format_timestamp_ass(seconds: float) -> str:
 
 class TTSEngine:
     def __init__(self):
-        pass
+        self._vivibe_lock = None
+
+    def _get_vivibe_lock(self):
+        if self._vivibe_lock is None:
+            self._vivibe_lock = asyncio.Lock()
+        return self._vivibe_lock
 
     async def get_vivibe_voices_detail(self, api_key: Optional[str] = None) -> Dict[str, Any]:
         """Lấy danh sách các giọng đọc từ tài khoản ViVibe (LucyAI) kèm thông báo chi tiết"""
@@ -172,7 +177,7 @@ class TTSEngine:
         api_key: str,
         rate: str = "+0%"
     ) -> Dict[str, Any]:
-        """Tạo giọng đọc chuyên nghiệp từ ViVibe (LucyAI) JSON-RPC API"""
+        """Tạo giọng đọc chuyên nghiệp từ ViVibe (LucyAI) JSON-RPC API với Khóa Đơn Luồng tránh nghẽn Export"""
         url = "https://api.lucylab.io/json-rpc"
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -191,7 +196,6 @@ class TTSEngine:
         except Exception:
             speed = 1.0
 
-        # Bước 1: Khởi tạo TTS job (ttsLongText)
         payload = {
             "method": "ttsLongText",
             "input": {
@@ -201,90 +205,111 @@ class TTSEngine:
             }
         }
 
-        print(f"[ViVibe TTS] Đang gửi yêu cầu đọc ({len(text)} ký tự) - Voice ID: {voice_id}...", flush=True)
-        timeout = aiohttp.ClientTimeout(total=45, connect=10)
-        
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(url, headers=headers, json=payload) as resp:
-                if resp.status != 200:
-                    err_txt = await resp.text()
-                    raise RuntimeError(f"ViVibe API Error {resp.status}: {err_txt[:200]}")
+        # ViVibe chỉ cho phép 1 task export tại một thời điểm trên một tài khoản
+        lock = self._get_vivibe_lock()
+        async with lock:
+            print(f"[ViVibe TTS] Đang gửi yêu cầu đọc ({len(text)} ký tự) - Voice ID: {voice_id}...", flush=True)
+            timeout = aiohttp.ClientTimeout(total=45, connect=10)
+            export_id = None
+
+            # Bước 1: Khởi tạo TTS job kèm cơ chế chờ dứt điểm task cũ
+            for init_try in range(5):
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    async with session.post(url, headers=headers, json=payload) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            if "error" in data:
+                                err_info = data.get("error", {})
+                                err_msg = err_info.get("message", "") if isinstance(err_info, dict) else str(err_info)
+                                if "export in progress" in err_msg.lower():
+                                    print(f"[ViVibe TTS] Đang đợi export trước dứt điểm (chờ 2s - lần {init_try+1}/5)...", flush=True)
+                                    await asyncio.sleep(2.5)
+                                    continue
+                                else:
+                                    raise RuntimeError(f"ViVibe API báo lỗi: {err_msg}")
+                            
+                            result = data.get("result", {})
+                            export_id = result.get("projectExportId")
+                            if export_id:
+                                break
+                        else:
+                            err_txt = await resp.text()
+                            raise RuntimeError(f"ViVibe API Error {resp.status}: {err_txt[:200]}")
                 
-                data = await resp.json()
-                result = data.get("result", {})
-                export_id = result.get("projectExportId")
-                if not export_id:
-                    raise RuntimeError(f"ViVibe không trả về projectExportId: {data}")
+                await asyncio.sleep(1.5)
 
-        # Bước 2: Polling lấy kết quả âm thanh qua getExportStatus (Tối đa 90 giây)
-        poll_payload = {
-            "method": "getExportStatus",
-            "input": {
-                "projectExportId": export_id
+            if not export_id:
+                raise RuntimeError(f"ViVibe không trả về projectExportId hợp lệ.")
+
+            # Bước 2: Polling lấy kết quả âm thanh qua getExportStatus (Tối đa 90 giây)
+            poll_payload = {
+                "method": "getExportStatus",
+                "input": {
+                    "projectExportId": export_id
+                }
             }
-        }
 
-        max_wait_seconds = 90
-        start_poll = time.time()
-        audio_url = None
-        srt_url = None
+            max_wait_seconds = 90
+            start_poll = time.time()
+            audio_url = None
+            srt_url = None
 
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            while time.time() - start_poll < max_wait_seconds:
-                await asyncio.sleep(2.0)
-                async with session.post(url, headers=headers, json=poll_payload) as resp:
-                    if resp.status == 200:
-                        status_data = await resp.json()
-                        st_res = status_data.get("result", {})
-                        state = st_res.get("state")
-                        
-                        if state == "completed":
-                            audio_url = st_res.get("url")
-                            srt_url = st_res.get("srtUrl")
-                            break
-                        elif state == "failed":
-                            raise RuntimeError(f"ViVibe TTS render thất bại: {status_data}")
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                while time.time() - start_poll < max_wait_seconds:
+                    await asyncio.sleep(2.0)
+                    async with session.post(url, headers=headers, json=poll_payload) as resp:
+                        if resp.status == 200:
+                            status_data = await resp.json()
+                            st_res = status_data.get("result", {})
+                            state = st_res.get("state")
+                            
+                            if state == "completed":
+                                audio_url = st_res.get("url")
+                                srt_url = st_res.get("srtUrl")
+                                break
+                            elif state == "failed":
+                                raise RuntimeError(f"ViVibe TTS render thất bại: {status_data}")
+                        else:
+                            print(f"[ViVibe TTS] Polling status HTTP {resp.status}...", flush=True)
+
+            if not audio_url:
+                raise TimeoutError("ViVibe TTS xử lý quá 90 giây mà chưa hoàn thành.")
+
+            # Bước 3: Tải file Audio về máy
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
+                async with session.get(audio_url) as a_resp:
+                    if a_resp.status == 200:
+                        with open(output_audio_path, "wb") as f:
+                            f.write(await a_resp.read())
                     else:
-                        print(f"[ViVibe TTS] Polling status HTTP {resp.status}...")
+                        raise RuntimeError(f"Không tải được audio từ ViVibe: HTTP {a_resp.status}")
 
-        if not audio_url:
-            raise TimeoutError("ViVibe TTS xử lý quá 90 giây mà chưa hoàn thành.")
+                # Bước 4: Tải file SRT nếu có
+                if srt_url and output_srt_path:
+                    try:
+                        async with session.get(srt_url) as s_resp:
+                            if s_resp.status == 200:
+                                with open(output_srt_path, "wb") as f:
+                                    f.write(await s_resp.read())
+                    except Exception as e:
+                        print(f"[ViVibe TTS] Lỗi tải SRT: {e}", flush=True)
 
-        # Bước 3: Tải file Audio về máy
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
-            async with session.get(audio_url) as a_resp:
-                if a_resp.status == 200:
-                    with open(output_audio_path, "wb") as f:
-                        f.write(await a_resp.read())
-                else:
-                    raise RuntimeError(f"Không tải được audio từ ViVibe: HTTP {a_resp.status}")
+            # Đo độ dài file audio chính xác
+            duration = self.get_audio_duration(output_audio_path)
 
-            # Bước 4: Tải file SRT nếu có
-            if srt_url and output_srt_path:
-                try:
-                    async with session.get(srt_url) as s_resp:
-                        if s_resp.status == 200:
-                            with open(output_srt_path, "wb") as f:
-                                f.write(await s_resp.read())
-                except Exception as e:
-                    print(f"[ViVibe TTS] Lỗi tải SRT: {e}")
+            # Nếu không có srt từ API thì tạo srt 1 khối cơ bản
+            if output_srt_path and (not os.path.exists(output_srt_path) or os.path.getsize(output_srt_path) == 0):
+                with open(output_srt_path, "w", encoding="utf-8") as f:
+                    f.write(f"1\n00:00:00,000 --> {format_timestamp_srt(duration)}\n{text}\n")
 
-        # Đo độ dài file audio chính xác
-        duration = self.get_audio_duration(output_audio_path)
-
-        # Nếu không có srt từ API thì tạo srt 1 khối cơ bản
-        if output_srt_path and (not os.path.exists(output_srt_path) or os.path.getsize(output_srt_path) == 0):
-            with open(output_srt_path, "w", encoding="utf-8") as f:
-                f.write(f"1\n00:00:00,000 --> {format_timestamp_srt(duration)}\n{text}\n")
-
-        print(f"[ViVibe TTS] Xuat giong doc thanh cong: {duration:.1f}s!")
-        return {
-            "audio_path": output_audio_path,
-            "duration": duration,
-            "voice": f"vivibe:{voice_id}",
-            "srt_path": output_srt_path,
-            "ass_path": output_ass_path
-        }
+            print(f"[ViVibe TTS] Xuất giọng đọc thành công: {duration:.1f}s!", flush=True)
+            return {
+                "audio_path": output_audio_path,
+                "duration": duration,
+                "voice": f"vivibe:{voice_id}",
+                "srt_path": output_srt_path,
+                "ass_path": output_ass_path
+            }
 
     async def _generate_speech_edge_tts(
         self,
