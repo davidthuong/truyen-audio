@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import random
 import base64
@@ -15,6 +16,47 @@ class VisualEngine:
     def __init__(self):
         pass
 
+    def _sanitize_and_optimize_prompt(self, raw_prompt: str, style_key: str) -> str:
+        """
+        Làm sạch, tối ưu hóa và khử các từ nhạy cảm dễ bị Proxy/OpenAI Safety Filter chặn:
+        - Khử các từ nhạy cảm (trẻ em bị bỏ rơi, bạo lực, máu me, tai nạn) -> chuyển sang mô tả nghệ thuật điện ảnh an toàn.
+        - Giới hạn độ dài chuẩn ~250-300 ký tự để API Proxy phản hồi nhanh nhất (dưới 15-20s).
+        """
+        sensitive_replacements = {
+            r"\b(abandoned\s+child|abandoned\s+baby|left\s+alone\s+child|orphan\s+baby)\b": "young boy in elegant warm coat",
+            r"\b(crying\s+baby|crying\s+child|toddler\s+in\s+danger)\b": "young child looking curiously",
+            r"\b(dead\s+body|corpse|killed|murder|murdered|assassination)\b": "mysterious shadowy silhouette lying down",
+            r"\b(blood|bloody|bleeding|wound|injured)\b": "dramatic crimson red backlight reflection",
+            r"\b(weapon|gun|pistol|rifle|shooting|stab|stabbing)\b": "dramatic confrontation gesture",
+            r"\b(torture|abuse|violent|violence|assault)\b": "intense psychological confrontation",
+            r"\b(nude|naked|erotic|bikini|sexy)\b": "elegant luxury evening dress"
+        }
+
+        p = raw_prompt.strip()
+        for pattern, replacement in sensitive_replacements.items():
+            p = re.sub(pattern, replacement, p, flags=re.IGNORECASE)
+
+        # Lấy style suffix
+        style = VISUAL_STYLES.get(style_key, VISUAL_STYLES.get("dark_mystery", {}))
+        suffix = style.get("prompt_suffix", "")
+
+        # Ghép prompt và rút gọn hợp lý
+        full = f"{p}, {suffix}".strip()
+        parts = [part.strip() for part in full.split(",") if part.strip()]
+        unique_parts = []
+        seen = set()
+        for pt in parts:
+            low = pt.lower()
+            if low not in seen:
+                seen.add(low)
+                unique_parts.append(pt)
+
+        optimized = ", ".join(unique_parts)
+        if len(optimized) > 300:
+            optimized = optimized[:300].rsplit(",", 1)[0]
+
+        return optimized
+
     async def generate_image(
         self,
         prompt: str,
@@ -27,8 +69,7 @@ class VisualEngine:
         Tạo ảnh AI theo prompt và phong cách visual
         Hỗ trợ: Custom OpenAI/DALL-E API endpoint hoặc Pollinations AI (Flux)
         """
-        style = VISUAL_STYLES.get(style_key, VISUAL_STYLES["dark_mystery"])
-        full_prompt = f"{prompt}, {style['prompt_suffix']}"
+        full_prompt = self._sanitize_and_optimize_prompt(prompt, style_key)
 
         settings = load_settings()
         api_key = settings.get("api_key", "").strip()
@@ -51,7 +92,7 @@ class VisualEngine:
                     return output_image_path
             except Exception as e:
                 err_msg = str(e) or type(e).__name__
-                print(f"Error calling Proxy Image API: {err_msg}. Fallback to Pollinations Flux...")
+                print(f"Error calling Proxy Image API: {err_msg}. Fallback to Pollinations Flux...", flush=True)
 
         # 2. Tạo ảnh bằng Pollinations AI (Flux / SDXL - Fallback dự phòng)
         try:
@@ -199,12 +240,12 @@ class VisualEngine:
             "size": size
         }
 
-        timeout = aiohttp.ClientTimeout(total=120, connect=15)
+        timeout = aiohttp.ClientTimeout(total=45, connect=10)
 
         for attempt in range(1, max_retries + 1):
             try:
                 start_t = time.time()
-                print(f"[Proxy Image] Dang goi API Proxy ({model}) - Lan thu {attempt}/{max_retries}...")
+                print(f"[Proxy Image] Dang goi API Proxy ({model}) - Lan thu {attempt}/{max_retries}...", flush=True)
                 async with aiohttp.ClientSession(timeout=timeout) as session:
                     async with session.post(f"{base_url}/images/generations", headers=headers, json=payload) as resp:
                         if resp.status == 200:
@@ -216,28 +257,28 @@ class VisualEngine:
                                     with open(output_path, "wb") as f:
                                         f.write(img_bytes)
                                     dur = time.time() - start_t
-                                    print(f"[Proxy Image] Tao anh thanh cong qua Proxy ({model}) trong {dur:.1f}s!")
+                                    print(f"[Proxy Image] Tao anh thanh cong qua Proxy ({model}) trong {dur:.1f}s!", flush=True)
                                     return True
                                 elif "url" in item and item["url"]:
-                                    async with session.get(item["url"], timeout=aiohttp.ClientTimeout(total=45)) as img_resp:
+                                    async with session.get(item["url"], timeout=aiohttp.ClientTimeout(total=30)) as img_resp:
                                         if img_resp.status == 200:
                                             img_data = await img_resp.read()
                                             if len(img_data) > 5000:
                                                 with open(output_path, "wb") as f:
                                                     f.write(img_data)
                                                 dur = time.time() - start_t
-                                                print(f"[Proxy Image] Tai & luu anh thanh cong ({model}) trong {dur:.1f}s!")
+                                                print(f"[Proxy Image] Tai & luu anh thanh cong ({model}) trong {dur:.1f}s!", flush=True)
                                                 return True
                         else:
                             err_body = await resp.text()
-                            print(f"[Proxy Image] API error ({model}) Status {resp.status}: {err_body[:150]}")
+                            print(f"[Proxy Image] API error ({model}) Status {resp.status}: {err_body[:150]}", flush=True)
             except Exception as e:
                 err_msg = str(e) or type(e).__name__
-                print(f"[Proxy Image] Lan {attempt} that bai: {err_msg}")
+                print(f"[Proxy Image] Lan {attempt} that bai: {err_msg}", flush=True)
             
             if attempt < max_retries:
-                wait_sec = attempt * 3
-                print(f"[Proxy Image] Cho {wait_sec}s truoc khi thu lai...")
+                wait_sec = attempt * 2
+                print(f"[Proxy Image] Cho {wait_sec}s truoc khi thu lai...", flush=True)
                 await asyncio.sleep(wait_sec)
 
         return False
